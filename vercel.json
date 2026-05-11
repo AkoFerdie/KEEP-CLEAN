@@ -1,7 +1,7 @@
 {
-  "buildCommand": "echo 'Using pre-built files'",
-  "outputDirectory": "build/web",
-  "installCommand": "echo 'No install needed'",
+  "buildCommand": "echo 'Using pre-built files from build/web directory'",
+  "outputDirectory": "./build/web",
+  "installCommand": "echo 'No install needed - using pre-built Flutter web files'",
   "framework": null,
   "rewrites": [
     {
