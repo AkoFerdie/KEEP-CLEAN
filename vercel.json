@@ -1,7 +1,7 @@
 {
-  "buildCommand": "flutter build web",
+  "buildCommand": "npx -y @fluttertools/fvm flutter build web",
   "outputDirectory": "build/web",
-  "installCommand": "flutter pub get",
+  "installCommand": "npm install -g @fluttertools/fvm",
   "framework": null,
   "rewrites": [
     {
