@@ -53,19 +53,21 @@ class _ReportPageState extends State<ReportPage>
               ],
             ),
           ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: const [
-              _WasteRequestFeed(),
-              _PostWasteRequest(),
-            ],
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: const [
+                _WasteRequestFeed(),
+                _PostWasteRequest(),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
-}
+  }
+
 
 // ─────────────────────────────────────────────
 // FEED — Browse all waste pickup requests
