@@ -1,214 +1,224 @@
-// File: lib/notifications_page.dart
 import 'package:flutter/material.dart';
+import '../services/supabase_service.dart';
 
-class NotificationsPage extends StatefulWidget {
+class NotificationsPage extends StatelessWidget {
   const NotificationsPage({super.key});
 
   @override
-  State<NotificationsPage> createState() => _NotificationsPageState();
-}
-
-class _NotificationsPageState extends State<NotificationsPage> {
-  String selectedTab = "All";
-
-  final List<Map<String, String>> notifications = [
-    {
-      "type": "User",
-      "title": "User: Besong",
-      "subtitle": "Request for waste disposal",
-      "avatar": "https://randomuser.me/api/portraits/men/1.jpg"
-    },
-    {
-      "type": "User",
-      "title": "User: Sarah",
-      "subtitle": "Request for waste disposal",
-      "avatar": "https://randomuser.me/api/portraits/women/2.jpg"
-    },
-    {
-      "type": "Volunteer",
-      "title": "Volunteer: Clean Beach",
-      "subtitle": "Volunteer campaign Malingo Street",
-      "avatar": "https://randomuser.me/api/portraits/women/3.jpg"
-    },
-    {
-      "type": "Hysacam",
-      "title": "Hysacam: Patrol",
-      "subtitle": "Patrol area: Dirty South",
-      "avatar": "https://cdn-icons-png.flaticon.com/512/847/847969.png"
-    },
-  ];
-
-  @override
   Widget build(BuildContext context) {
-    // Filter notifications
-    List<Map<String, String>> filteredNotifications = notifications.where((item) {
-      if (selectedTab == "All") return true;
-      if (selectedTab == "Users") return item["type"] == "User" || item["type"] == "Hysacam";
-      if (selectedTab == "Volunteers") return item["type"] == "Volunteer";
-      return true;
-    }).toList();
-
     return Scaffold(
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Tabs
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                ...["All", "Users", "Volunteers"].map((tab) {
-                  bool isSelected = selectedTab == tab;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 20.0),
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          selectedTab = tab;
-                        });
-                      },
-                      child: Column(
-                        children: [
-                          Text(
-                            tab,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: isSelected ? Colors.green : Colors.grey[700],
-                            ),
+      backgroundColor: const Color(0xFFF4FAF4),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF4CAF50),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text('Notifications',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+        ),
+      ),
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: SupabaseService.getPatrolScheduleStream(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: Color(0xFF4CAF50)));
+          }
+
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.notifications_off_outlined, size: 64, color: Colors.grey[300]),
+                  const SizedBox(height: 16),
+                  Text('No notifications yet',
+                      style: TextStyle(fontSize: 16, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 6),
+                  Text('Patrol schedules will appear here',
+                      style: TextStyle(fontSize: 13, color: Colors.grey[400])),
+                ],
+              ),
+            );
+          }
+
+          final patrols = snapshot.data!;
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: patrols.length,
+            itemBuilder: (context, index) {
+              final p = patrols[index];
+              return GestureDetector(
+                onTap: () => _showDetail(context, p),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(color: Colors.green.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 3)),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4CAF50).withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                          if (isSelected)
-                            Container(
-                              margin: const EdgeInsets.only(top: 4),
-                              height: 2,
-                              width: 50,
-                              color: Colors.green,
-                            ),
-                        ],
-                      ),
+                          child: const Icon(Icons.local_shipping_outlined,
+                              color: Color(0xFF4CAF50), size: 26),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('🚛 Patrol Scheduled',
+                                  style: TextStyle(fontSize: 13, color: Color(0xFF4CAF50), fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 4),
+                              Text(
+                                p['location'] ?? 'Unknown location',
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(Icons.calendar_today, size: 12, color: Colors.black45),
+                                  const SizedBox(width: 4),
+                                  Text(p['date'] ?? '', style: const TextStyle(fontSize: 12, color: Colors.black45)),
+                                  const SizedBox(width: 10),
+                                  const Icon(Icons.access_time, size: 12, color: Colors.black45),
+                                  const SizedBox(width: 4),
+                                  Text(p['time'] ?? '', style: const TextStyle(fontSize: 12, color: Colors.black45)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right, color: Colors.black26),
+                      ],
                     ),
-                  );
-                }),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          // Notification list
-          Expanded(
-            child: ListView(
-              children: [
-                ...filteredNotifications.map((item) => ListTile(
-                      leading: CircleAvatar(
-                        backgroundImage: NetworkImage(item["avatar"]!),
-                        radius: 24,
-                      ),
-                      title: Text(
-                        item["title"]!,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 15),
-                      ),
-                      subtitle: Text(
-                        item["subtitle"]!,
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                    )),
-
-                // Only show schedules in "All"
-                if (selectedTab == "All") ...[
-                  const Padding(
-                    padding: EdgeInsets.all(12.0),
-                    child: Text("Volunteer Schedule",
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16)),
                   ),
-                  _buildScheduleCard(
-                    assetImagePath: 'assets/event.jpg', // 👈 YOUR LOCAL ASSET
-                    iconColor: Colors.blue,
-                    title: "Saturday, July 20, 9 AM - 12 PM",
-                    subtitle: "Cleanup Event: Riverbank Restoration",
-                  ),
-                  _buildScheduleCard(
-                    assetImagePath: 'assets/event.jpg', // 👈 YOUR LOCAL ASSET
-                    iconColor: Colors.blue,
-                    title: "Sunday, July 21, 10 AM - 1 PM",
-                    subtitle: "Cleanup Event: Park Beautification",
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.all(12.0),
-                    child: Text("Hysacam Patrol Schedule",
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16)),
-                  ),
-                  _buildScheduleCard(
-                    icon: Icons.location_on,
-                    iconColor: Colors.blue,
-                    title: "Today's Patrol: 8 AM - 12 PM",
-                    subtitle: "Patrol Area: OIC Market",
-                  ),
-                  _buildScheduleCard(
-                    icon: Icons.location_on,
-                    iconColor: Colors.blue,
-                    title: "Today's Patrol: 1 PM - 5 PM",
-                    subtitle: "Patrol Area: Mile 17",
-                  ),
-                ]
-              ],
-            ),
-          ),
-        ],
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
 
-  Widget _buildScheduleCard({
-    IconData? icon, // for Hysacam
-    String? assetImagePath, // for custom local image (volunteer)
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: iconColor.withOpacity(0.2),
-            child: icon != null
-                ? Icon(icon, color: iconColor)
-                : assetImagePath != null
-                    ? Image.asset(
-                        assetImagePath,
-                        width: 24,
-                        height: 24,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => Icon(Icons.image, color: iconColor),
-                      )
-                    : Icon(Icons.image, color: iconColor),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+  void _showDetail(BuildContext context, Map<String, dynamic> p) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Handle
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Icon + title
+            Row(
               children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 14)),
-                const SizedBox(height: 4),
-                Text(subtitle,
-                    style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4CAF50).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.local_shipping, color: Color(0xFF4CAF50), size: 30),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Patrol Schedule', style: TextStyle(fontSize: 12, color: Color(0xFF4CAF50), fontWeight: FontWeight.w600)),
+                      Text('Full Schedule Details', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87)),
+                    ],
+                  ),
+                ),
               ],
             ),
-          ),
-        ],
+
+            const SizedBox(height: 24),
+            const Divider(),
+            const SizedBox(height: 16),
+
+            // Details
+            _detailRow(Icons.location_on, 'Location', p['location'] ?? 'N/A', const Color(0xFF4CAF50)),
+            const SizedBox(height: 14),
+            _detailRow(Icons.calendar_today, 'Date', p['date'] ?? 'N/A', const Color(0xFF1E88E5)),
+            const SizedBox(height: 14),
+            _detailRow(Icons.access_time, 'Time', p['time'] ?? 'N/A', const Color(0xFFFF9800)),
+            const SizedBox(height: 14),
+            _detailRow(Icons.info_outline, 'Status', 'Scheduled', const Color(0xFF4CAF50)),
+
+            const SizedBox(height: 28),
+
+            // Close button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4CAF50),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Close', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _detailRow(IconData icon, String label, String value, Color color) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: color, size: 18),
+        ),
+        const SizedBox(width: 14),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 11, color: Colors.black45, fontWeight: FontWeight.w500)),
+            Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87)),
+          ],
+        ),
+      ],
     );
   }
 }

@@ -90,10 +90,10 @@ class SecondPage extends StatelessWidget {
                               ),
                             );
                           },
-                          child: const Text(
+                          child: Text(
                             'Sign In',
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: screenWidth * 0.045,
                               fontWeight: FontWeight.w600,
                             ),
                           ),

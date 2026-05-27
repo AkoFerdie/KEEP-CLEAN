@@ -31,14 +31,12 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
-  firebase_core: ^4.1.0
-  firebase_auth: ^6.4.0
-  cloud_firestore: ^6.0.1
-  firebase_storage: ^13.0.1
+  # Supabase dependencies
+  supabase_flutter: ^2.8.0
+  
+  # Other dependencies
   path: ^1.9.1
-  image_picker: ^1.1.2 # This was already good!
+  image_picker: ^1.1.2
   geolocator: ^14.0.2
   url_launcher: ^6.2.6
   google_sign_in: ^7.2.0
@@ -47,6 +45,7 @@ dependencies:
   http: ^1.2.0
   shared_preferences: ^2.3.2
   flutter_dotenv: ^6.0.1
+  flutter_local_notifications: ^18.0.1
   cupertino_icons: ^1.0.9
  
 
@@ -57,17 +56,6 @@ dev_dependencies:
   flutter_native_splash: ^2.4.1
   flutter_lints: ^6.0.0
 
-flutter_native_splash:
-  color: "#FFFFFF"
-  image: assets/front_logo.png
-  color_dark: "#FFFFFF"
-  image_dark: assets/front_logo.png
-  android_12:
-    image: assets/front_logo.png
-    color: "#FFFFFF"
-    image_dark: assets/front_logo.png
-    color_dark: "#FFFFFF"
-
 flutter_launcher_icons:
   android: true
   ios: true
@@ -76,7 +64,10 @@ flutter_launcher_icons:
   adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground: "assets/front_logo.png"
   web:
-    generate: false
+    generate: true
+    image_path: "assets/front_logo.png"
+    background_color: "#FFFFFF"
+    theme_color: "#4CAF50"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

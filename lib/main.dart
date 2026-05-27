@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'supabase_config.dart';
 
 import 'screens/splash_screen.dart';
-import 'firebase_options.dart';
 
 // Global theme notifier — accessible from anywhere in the app
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
@@ -19,12 +18,21 @@ void main() async {
     print('Warning: Could not load .env file: $e');
   }
   
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Initialize Supabase
+  await SupabaseConfig.initialize();
   
   runApp(const MyApp());
+}
+
+class _NoOverscrollBehavior extends ScrollBehavior {
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) =>
+      const ClampingScrollPhysics();
+
+  @override
+  Widget buildOverscrollIndicator(
+          BuildContext context, Widget child, ScrollableDetails details) =>
+      child;
 }
 
 class MyApp extends StatelessWidget {
@@ -38,6 +46,7 @@ class MyApp extends StatelessWidget {
       valueListenable: themeNotifier,
       builder: (_, mode, __) {
         return MaterialApp(
+          scrollBehavior: _NoOverscrollBehavior(),
           title: 'Keep It Clean',
           debugShowCheckedModeBanner: false,
           themeMode: mode,
@@ -45,6 +54,7 @@ class MyApp extends StatelessWidget {
           // ── Light Theme ──
           theme: ThemeData(
             useMaterial3: true,
+            fontFamily: 'sans-serif',
             colorScheme: ColorScheme.fromSeed(
               seedColor: primaryGreen,
               brightness: Brightness.light,
@@ -79,6 +89,7 @@ class MyApp extends StatelessWidget {
           // ── Dark Theme ──
           darkTheme: ThemeData(
             useMaterial3: true,
+            fontFamily: 'sans-serif',
             colorScheme: ColorScheme.fromSeed(
               seedColor: primaryGreen,
               brightness: Brightness.dark,

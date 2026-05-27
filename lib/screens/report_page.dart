@@ -3,8 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import '../services/supabase_service.dart';
 import 'payment_page.dart';
 import '../utils/theme_helper.dart';
 
@@ -72,60 +71,67 @@ class _ReportPageState extends State<ReportPage>
 // ─────────────────────────────────────────────
 // FEED — Browse all waste pickup requests
 // ─────────────────────────────────────────────
-class _WasteRequestFeed extends StatelessWidget {
+class _WasteRequestFeed extends StatefulWidget {
   const _WasteRequestFeed();
+
+  @override
+  State<_WasteRequestFeed> createState() => _WasteRequestFeedState();
+}
+
+class _WasteRequestFeedState extends State<_WasteRequestFeed> {
+  List<Map<String, dynamic>> _docs = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    SupabaseService.getWasteRequestsStream().listen((data) {
+      if (mounted) setState(() { _docs = List<Map<String, dynamic>>.from(data); _loading = false; });
+    });
+  }
+
+  void _onDelete(String docId) {
+    setState(() => _docs.removeWhere((d) => d['id'] == docId));
+  }
 
   @override
   Widget build(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('waste_requests')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-              child: CircularProgressIndicator(color: Color(0xFF4CAF50)));
-        }
+    if (_loading) {
+      return const Center(
+          child: CircularProgressIndicator(color: Color(0xFF4CAF50)));
+    }
 
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.inbox_outlined,
-                    size: w * 0.18, color: ThemeHelper.getSecondaryTextColor(context).withOpacity(0.3)),
-                const SizedBox(height: 12),
-                Text('No waste requests yet.',
-                    style: TextStyle(
-                        fontSize: w * 0.04, color: Colors.grey[700])),
-                const SizedBox(height: 6),
-                Text('Be the first to post one!',
-                    style: TextStyle(
-                        fontSize: w * 0.035, color: Colors.grey[600])),
-              ],
-            ),
-          );
-        }
+    if (_docs.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inbox_outlined,
+                size: w * 0.18, color: ThemeHelper.getSecondaryTextColor(context).withValues(alpha: 0.3)),
+            const SizedBox(height: 12),
+            Text('No waste requests yet.',
+                style: TextStyle(fontSize: w * 0.04, color: Colors.grey[700])),
+            const SizedBox(height: 6),
+            Text('Be the first to post one!',
+                style: TextStyle(fontSize: w * 0.035, color: Colors.grey[600])),
+          ],
+        ),
+      );
+    }
 
-        final docs = [...snapshot.data!.docs];
-        docs.sort((a, b) {
-          final aTime = (a.data() as Map<String, dynamic>)['createdAt'];
-          final bTime = (b.data() as Map<String, dynamic>)['createdAt'];
-          final aMillis = (aTime is Timestamp) ? aTime.millisecondsSinceEpoch : 0;
-          final bMillis = (bTime is Timestamp) ? bTime.millisecondsSinceEpoch : 0;
-          return bMillis.compareTo(aMillis);
-        });
-
-        return ListView.builder(
-          padding: EdgeInsets.all(w * 0.04),
-          itemCount: docs.length,
-          itemBuilder: (context, index) {
-            final doc = docs[index];
-            final data = doc.data() as Map<String, dynamic>;
-            return _WasteRequestCard(data: data, docId: doc.id);
-          },
+    return ListView.builder(
+      padding: EdgeInsets.all(w * 0.04),
+      itemCount: _docs.length,
+      itemBuilder: (context, index) {
+        final data = _docs[index];
+        final docId = data['id']?.toString() ?? '';
+        if (docId.isEmpty) return const SizedBox.shrink();
+        return _WasteRequestCard(
+          data: data,
+          docId: docId,
+          onDeleted: () => _onDelete(docId),
         );
       },
     );
@@ -138,15 +144,16 @@ class _WasteRequestFeed extends StatelessWidget {
 class _WasteRequestCard extends StatelessWidget {
   final Map<String, dynamic> data;
   final String docId;
+  final VoidCallback onDeleted;
 
-  const _WasteRequestCard({required this.data, required this.docId});
+  const _WasteRequestCard({required this.data, required this.docId, required this.onDeleted});
 
   @override
   Widget build(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
-    final List imageUrls = data['imageUrls'] ?? [];
+    final List imageUrls = data['image_urls'] ?? [];
     final String status = data['status'] ?? 'open';
-    final currentUser = FirebaseAuth.instance.currentUser;
+    final currentUser = SupabaseService.currentUser;
 
     final statusColor = status == 'taken'
         ? Colors.orange
@@ -175,9 +182,14 @@ class _WasteRequestCard extends StatelessWidget {
               children: [
                 CircleAvatar(
                   backgroundColor:
-                      const Color(0xFF4CAF50).withOpacity(0.15),
-                  child: const Icon(Icons.person,
-                      color: Color(0xFF4CAF50), size: 20),
+                      const Color(0xFF4CAF50).withValues(alpha: 0.15),
+                  backgroundImage: (data['profile_image_url'] ?? '').isNotEmpty
+                      ? NetworkImage(data['profile_image_url'])
+                      : null,
+                  child: (data['profile_image_url'] ?? '').isEmpty
+                      ? const Icon(Icons.person,
+                          color: Color(0xFF4CAF50), size: 20)
+                      : null,
                 ),
                 SizedBox(width: w * 0.03),
                 Expanded(
@@ -185,7 +197,7 @@ class _WasteRequestCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        data['postedBy'] ?? 'Anonymous',
+                        data['posted_by'] ?? 'Anonymous',
                         style: TextStyle(
                             fontSize: w * 0.038,
                             fontWeight: FontWeight.w600,
@@ -204,10 +216,10 @@ class _WasteRequestCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.12),
+                    color: statusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: status == 'open' && data['createdBy'] != currentUser?.uid
+                  child: status == 'open' && data['created_by'] != currentUser?.id
                       ? GestureDetector(
                           onTap: () => _showAcceptDialog(context, docId, data),
                           child: Text(
@@ -227,28 +239,18 @@ class _WasteRequestCard extends StatelessWidget {
                               fontWeight: FontWeight.w700),
                         ),
                 ),
+                if (data['created_by'] == currentUser?.id) ...
+                  [
+                    const SizedBox(width: 6),
+                    GestureDetector(
+                      onTap: () => _confirmDelete(context, docId),
+                      child: const Icon(Icons.delete_outline,
+                          color: Colors.redAccent, size: 20),
+                    ),
+                  ],
               ],
             ),
           ),
-
-          // ── Waste Image ──
-          if (imageUrls.isNotEmpty)
-            ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.zero),
-              child: Image.network(
-                imageUrls[0],
-                height: w * 0.55,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  height: w * 0.4,
-                  color: Colors.grey.shade100,
-                  child: const Icon(Icons.broken_image_outlined,
-                      color: Colors.black26, size: 40),
-                ),
-              ),
-            ),
 
           // ── Details ──
           Padding(
@@ -273,7 +275,7 @@ class _WasteRequestCard extends StatelessWidget {
                         _formatPickupTime(data['pickupTime']), w),
                     _infoChip(Icons.phone_outlined,
                         data['phone'] ?? 'N/A', w),
-                    _infoChip(Icons.attach_money_rounded,
+                    _infoChip(Icons.account_balance_wallet_outlined,
                         '${data['amount'] ?? '0'} FCFA', w,
                         color: const Color(0xFF2E7D32)),
                   ],
@@ -281,9 +283,28 @@ class _WasteRequestCard extends StatelessWidget {
 
                 SizedBox(height: w * 0.04),
 
+                // ── Waste Image (before action button) ──
+                if (imageUrls.isNotEmpty)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      imageUrls[0],
+                      width: double.infinity,
+                      fit: BoxFit.fitWidth,
+                      errorBuilder: (_, __, ___) => Container(
+                        height: w * 0.4,
+                        color: Colors.grey.shade100,
+                        child: const Icon(Icons.broken_image_outlined,
+                            color: Colors.black26, size: 40),
+                      ),
+                    ),
+                  ),
+
+                if (imageUrls.isNotEmpty) SizedBox(height: w * 0.04),
+
                 // ── Action button ──
                 if (status == 'open' &&
-                    data['createdBy'] != currentUser?.uid)
+                    data['created_by'] != currentUser?.id)
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
@@ -308,15 +329,15 @@ class _WasteRequestCard extends StatelessWidget {
                   ),
 
                 if (status == 'open' &&
-                    data['createdBy'] == currentUser?.uid)
+                    data['created_by'] == currentUser?.id)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.08),
+                      color: Colors.orange.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                          color: Colors.orange.withOpacity(0.3)),
+                          color: Colors.orange.withValues(alpha: 0.3)),
                     ),
                     child: const Center(
                       child: Text(
@@ -334,14 +355,14 @@ class _WasteRequestCard extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF4CAF50).withOpacity(0.08),
+                      color: const Color(0xFF4CAF50).withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                          color: const Color(0xFF4CAF50).withOpacity(0.3)),
+                          color: const Color(0xFF4CAF50).withValues(alpha: 0.3)),
                     ),
                     child: Center(
                       child: Text(
-                        '🚛 ${data['acceptedByName'] ?? 'Someone'} is coming to pick this up!',
+                        '🚛 ${data['accepted_by_name'] ?? 'Someone'} is coming to pick this up!',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                             color: Color(0xFF2E7D32),
@@ -360,9 +381,13 @@ class _WasteRequestCard extends StatelessWidget {
 
   String _formatPickupTime(dynamic value) {
     if (value == null) return 'Flexible';
-    if (value is Timestamp) {
-      final dt = value.toDate();
-      return '${dt.day}/${dt.month}/${dt.year} ${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}';
+    if (value is String) {
+      try {
+        final dt = DateTime.parse(value);
+        return '${dt.day}/${dt.month}/${dt.year} ${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}';
+      } catch (_) {
+        return value;
+      }
     }
     return value.toString();
   }
@@ -373,9 +398,9 @@ class _WasteRequestCard extends StatelessWidget {
       padding: EdgeInsets.symmetric(
           horizontal: w * 0.025, vertical: w * 0.015),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -407,65 +432,222 @@ class _WasteRequestCard extends StatelessWidget {
 
   Future<void> _showAcceptDialog(
       BuildContext context, String docId, Map<String, dynamic> data) async {
-    final w = MediaQuery.of(context).size.width;
-    showDialog(
+    final List imageUrls = data['image_urls'] ?? [];
+    int current = 0;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => DraggableScrollableSheet(
+          initialChildSize: 0.85,
+          maxChildSize: 0.95,
+          minChildSize: 0.5,
+          builder: (_, scrollController) => Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 10),
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Images carousel
+                        if (imageUrls.isNotEmpty) ...[
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: SizedBox(
+                              height: 220,
+                              child: PageView.builder(
+                                itemCount: imageUrls.length,
+                                onPageChanged: (i) => setModalState(() => current = i),
+                                itemBuilder: (_, index) => InteractiveViewer(
+                                  child: Image.network(
+                                    imageUrls[index],
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      color: Colors.grey[200],
+                                      child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                                    ),
+                                    loadingBuilder: (_, child, progress) => progress == null
+                                        ? child
+                                        : Container(
+                                            color: Colors.grey[100],
+                                            child: const Center(child: CircularProgressIndicator(color: Color(0xFF4CAF50))),
+                                          ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (imageUrls.length > 1) ...[
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(
+                                imageUrls.length,
+                                (i) => AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                                  width: current == i ? 16 : 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: current == i ? const Color(0xFF4CAF50) : Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 16),
+                        ],
+
+                        // Poster info
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 22,
+                              backgroundColor: const Color(0xFF4CAF50).withOpacity(0.1),
+                              backgroundImage: (data['profile_image_url'] ?? '').isNotEmpty
+                                  ? NetworkImage(data['profile_image_url']) : null,
+                              child: (data['profile_image_url'] ?? '').isEmpty
+                                  ? const Icon(Icons.person, size: 22, color: Color(0xFF4CAF50)) : null,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(data['posted_by'] ?? 'Anonymous',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                  Text(data['location'] ?? '',
+                                      style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 16),
+                        const Divider(),
+                        const SizedBox(height: 12),
+
+                        if ((data['description'] ?? '').isNotEmpty) ...[
+                          const Text('Description', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          const SizedBox(height: 6),
+                          Text(data['description'], style: TextStyle(color: Colors.grey[800], fontSize: 14, height: 1.5)),
+                          const SizedBox(height: 16),
+                        ],
+
+                        const Text('Details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        const SizedBox(height: 10),
+                        _detailRow(Icons.access_time_outlined, 'Pickup Time', _formatPickupTime(data['pickup_time'])),
+                        _detailRow(Icons.account_balance_wallet_outlined, 'Amount', '${data['amount'] ?? '0'} FCFA'),
+                        _detailRow(Icons.phone_outlined, 'Contact', data['phone'] ?? 'N/A'),
+                        if (data['waste_type'] != null)
+                          _detailRow(Icons.delete_outline, 'Waste Type', data['waste_type']),
+
+                        const SizedBox(height: 24),
+
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.redAccent,
+                                  side: const BorderSide(color: Colors.redAccent),
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                                child: const Text('Decline', style: TextStyle(fontWeight: FontWeight.bold)),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () async {
+                                  Navigator.pop(ctx);
+                                  await _acceptRequest(context, docId, data);
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF4CAF50),
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                                child: const Text('Accept', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, String docId) async {
+    final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.handshake_outlined, color: Color(0xFF4CAF50)),
-            SizedBox(width: 8),
-            Text('Pickup Request',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('📍 ${data['location'] ?? ''}',
-                style: TextStyle(fontSize: w * 0.035, color: Colors.black87)),
-            const SizedBox(height: 6),
-            Text('⏰ Pickup time: ${_formatPickupTime(data['pickupTime'])}',
-                style: TextStyle(fontSize: w * 0.033, color: Colors.black54)),
-            const SizedBox(height: 6),
-            Text('💰 Amount: ${data['amount'] ?? '0'} FCFA',
-                style: TextStyle(
-                    fontSize: w * 0.033,
-                    color: const Color(0xFF2E7D32),
-                    fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            Text('📞 Contact: ${data['phone'] ?? 'N/A'}',
-                style: TextStyle(fontSize: w * 0.033, color: Colors.black54)),
-            const SizedBox(height: 12),
-            const Text(
-              'Do you want to accept this pickup request?',
-              style: TextStyle(fontSize: 13, color: Colors.black45),
-            ),
-          ],
-        ),
+        title: const Text('Delete Post'),
+        content: const Text('Are you sure you want to delete this post?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Decline',
-                style: TextStyle(
-                    color: Colors.redAccent, fontWeight: FontWeight.w600)),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await _acceptRequest(context, docId, data);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4CAF50),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-            child: const Text('Accept',
-                style:
-                    TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      onDeleted(); // remove instantly from UI
+      await SupabaseService.client
+          .from('waste_requests')
+          .delete()
+          .eq('id', docId);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Post deleted.')),
+        );
+      }
+    }
+  }
+
+  Widget _detailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: const Color(0xFF4CAF50)),
+          const SizedBox(width: 10),
+          Text('$label: ', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          Expanded(child: Text(value, style: TextStyle(color: Colors.grey[700], fontSize: 13))),
         ],
       ),
     );
@@ -473,24 +655,13 @@ class _WasteRequestCard extends StatelessWidget {
 
   Future<void> _acceptRequest(
       BuildContext context, String docId, Map<String, dynamic> data) async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = SupabaseService.currentUser;
     if (user == null) return;
 
-    final userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get();
-    final username =
-        userDoc.data()?['username'] ?? user.email ?? 'Someone';
+    final userProfile = await SupabaseService.getUserProfile(user.id);
+    final username = userProfile?['username'] ?? user.email ?? 'Someone';
 
-    await FirebaseFirestore.instance
-        .collection('waste_requests')
-        .doc(docId)
-        .update({
-      'status': 'taken',
-      'acceptedBy': user.uid,
-      'acceptedByName': username,
-    });
+    await SupabaseService.acceptWasteRequest(docId, username);
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -537,7 +708,6 @@ class _PostWasteRequestState extends State<_PostWasteRequest> {
   final ImagePicker _picker = ImagePicker();
   File? _selectedFile;
   Uint8List? _webImage;
-  String? _fileName;
   bool _isLoading = false;
 
   @override
@@ -560,13 +730,11 @@ class _PostWasteRequestState extends State<_PostWasteRequest> {
       setState(() {
         _webImage = bytes;
         _selectedFile = null;
-        _fileName = file.name;
       });
     } else {
       setState(() {
         _selectedFile = File(file.path);
         _webImage = null;
-        _fileName = file.name;
       });
     }
   }
@@ -591,34 +759,51 @@ class _PostWasteRequestState extends State<_PostWasteRequest> {
       return;
     }
 
+    if (_selectedFile == null && _webImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('⚠️ Please add a photo of the waste.')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('Not signed in');
+      // Upload image
+      List<String> imageUrls = [];
+      try {
+        String url;
+        if (kIsWeb && _webImage != null) {
+          url = await SupabaseService.uploadImage(
+            imageData: _webImage!,
+            bucket: 'waste-images',
+            folder: 'reports',
+          );
+        } else {
+          url = await SupabaseService.uploadImage(
+            imageData: _selectedFile!,
+            bucket: 'waste-images',
+            folder: 'reports',
+          );
+        }
+        imageUrls = [url];
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('⚠️ Image upload failed: $e')),
+        );
+        setState(() => _isLoading = false);
+        return;
+      }
 
-      // Get username
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      final username =
-          userDoc.data()?['username'] ?? user.email ?? 'Anonymous';
-
-      // Save to Firestore (no image upload)
-      await FirebaseFirestore.instance.collection('waste_requests').add({
-        'location': _locationController.text.trim(),
-        'wasteType': _selectedWasteType, // Optional field
-        'phone': _phoneController.text.trim(),
-        'amount': _amountController.text.trim(),
-        'pickupTime': _timeController.text.trim(),
-        'description': _descriptionController.text.trim(),
-        'imageUrls': [],
-        'createdBy': user.uid,
-        'postedBy': username,
-        'status': 'open',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await SupabaseService.createWasteRequest(
+        location: _locationController.text.trim(),
+        phone: _phoneController.text.trim(),
+        amount: _amountController.text.trim(),
+        pickupTime: _timeController.text.trim(),
+        description: _descriptionController.text.trim(),
+        wasteType: _selectedWasteType,
+        imageUrls: imageUrls,
+      );
 
       // Clear form
       _locationController.clear();
@@ -629,7 +814,6 @@ class _PostWasteRequestState extends State<_PostWasteRequest> {
       setState(() {
         _selectedFile = null;
         _webImage = null;
-        _fileName = null;
       });
 
       if (mounted) {
@@ -663,7 +847,7 @@ class _PostWasteRequestState extends State<_PostWasteRequest> {
         margin: const EdgeInsets.all(10),
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFF4CAF50).withOpacity(0.1),
+          color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, color: const Color(0xFF4CAF50), size: 18),
@@ -735,7 +919,7 @@ class _PostWasteRequestState extends State<_PostWasteRequest> {
 
             // Type of Waste Dropdown (Optional)
             DropdownButtonFormField<String>(
-              value: _selectedWasteType,
+              initialValue: _selectedWasteType,
               isExpanded: true,
               dropdownColor: ThemeHelper.getCardColor(context),
               // No validator since this field is optional
@@ -811,7 +995,7 @@ class _PostWasteRequestState extends State<_PostWasteRequest> {
                   color: const Color(0xFFF4FAF4),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                      color: const Color(0xFF4CAF50).withOpacity(0.35),
+                      color: const Color(0xFF4CAF50).withValues(alpha: 0.35),
                       width: 1.5),
                 ),
                 child: _buildImagePreview(w),
@@ -877,7 +1061,7 @@ class _PostWasteRequestState extends State<_PostWasteRequest> {
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: const Color(0xFF4CAF50).withOpacity(0.1),
+            color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: const Icon(Icons.add_a_photo_outlined,

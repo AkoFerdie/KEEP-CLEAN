@@ -44,3 +44,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 .vercel
+
+# Environment variables - never commit API keys
+.env
+.env.*

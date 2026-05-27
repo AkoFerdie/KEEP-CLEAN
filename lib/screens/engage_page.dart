@@ -4,9 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import '../services/supabase_service.dart';
 import '../utils/theme_helper.dart';
 
 class EngagePage extends StatefulWidget {
@@ -106,50 +104,33 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
     setState(() => _isLoading = true);
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = SupabaseService.currentUser;
       if (user == null) throw Exception("User not signed in");
 
-      // Upload media files to Firebase Storage
+      // Upload media files to Supabase Storage
       List<String> mediaUrls = [];
-      if (kIsWeb) {
-        for (int i = 0; i < _webImages.length; i++) {
-          final ref = FirebaseStorage.instance
-              .ref()
-              .child("campaigns/${DateTime.now().millisecondsSinceEpoch}_${_fileNames[i]}");
-          await ref.putData(_webImages[i], SettableMetadata(contentType: 'image/jpeg'));
-          String url = await ref.getDownloadURL();
-          mediaUrls.add(url);
-        }
-      } else {
-        for (int i = 0; i < _selectedFiles.length; i++) {
-          final ref = FirebaseStorage.instance
-              .ref()
-              .child("campaigns/${DateTime.now().millisecondsSinceEpoch}_${_fileNames[i]}");
-          await ref.putFile(_selectedFiles[i]);
-          String url = await ref.getDownloadURL();
-          mediaUrls.add(url);
-        }
+      if (kIsWeb && _webImages.isNotEmpty) {
+        mediaUrls = await SupabaseService.uploadMultipleImages(
+          imageDataList: _webImages,
+          bucket: 'campaigns',
+          folder: 'events',
+        );
+      } else if (_selectedFiles.isNotEmpty) {
+        mediaUrls = await SupabaseService.uploadMultipleImages(
+          imageDataList: _selectedFiles,
+          bucket: 'campaigns',
+          folder: 'events',
+        );
       }
 
-      // Generate a custom document ID
-      final docId =
-          "campaign_${user.uid}_${DateTime.now().millisecondsSinceEpoch}";
-
-      // Save campaign to Firestore with registration list
-      await FirebaseFirestore.instance.collection("campaigns").doc(docId).set({
-        "location": _locationController.text.trim(),
-        "date": _dateController.text.trim(),
-        "time": _timeController.text.trim(),
-        "description": _descriptionController.text.trim(),
-        "mediaUrls": mediaUrls,
-        "createdBy": user.uid,
-        "createdAt": FieldValue.serverTimestamp(),
-        "status": "active",
-        "likes": 0,
-        "comments": [],
-        "registrations": [], // List of user IDs who registered
-        "registrationCount": 0,
-      });
+      // Create campaign using Supabase
+      await SupabaseService.createCampaign(
+        location: _locationController.text.trim(),
+        date: _dateController.text.trim(),
+        time: _timeController.text.trim(),
+        description: _descriptionController.text.trim(),
+        mediaUrls: mediaUrls,
+      );
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("✅ Event posted successfully!")),
@@ -256,17 +237,14 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
   }
 
   Widget _buildBrowseEventsTab() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('campaigns')
-          .orderBy('createdAt', descending: true)
-          .snapshots(),
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: SupabaseService.getCampaignsStream(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator(color: Color(0xFF4CAF50)));
         }
         
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -283,11 +261,11 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
         
         return ListView.builder(
           padding: const EdgeInsets.all(16),
-          itemCount: snapshot.data!.docs.length,
+          itemCount: snapshot.data!.length,
           itemBuilder: (context, index) {
-            final event = snapshot.data!.docs[index];
-            final data = event.data() as Map<String, dynamic>;
-            return _buildPublicEventCard(event.id, data);
+            final data = snapshot.data![index];
+            final eventId = data['id'] as String;
+            return _buildPublicEventCard(eventId, data);
           },
         );
       },
@@ -485,7 +463,7 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
   }
 
   Widget _buildPublicEventCard(String eventId, Map<String, dynamic> data) {
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final currentUserId = SupabaseService.currentUser?.id ?? '';
     final registrations = data['registrations'] as List? ?? [];
     final isRegistered = registrations.contains(currentUserId);
     final registrationCount = data['registrationCount'] as int? ?? 0;
@@ -622,29 +600,19 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
   }
 
   Future<void> _toggleRegistration(String eventId, bool isCurrentlyRegistered) async {
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    final currentUserId = SupabaseService.currentUser?.id;
     if (currentUserId == null) return;
 
     try {
-      final eventRef = FirebaseFirestore.instance.collection('campaigns').doc(eventId);
-      
       if (isCurrentlyRegistered) {
-        // Unregister
-        await eventRef.update({
-          'registrations': FieldValue.arrayRemove([currentUserId]),
-          'registrationCount': FieldValue.increment(-1),
-        });
+        await SupabaseService.unregisterFromCampaign(eventId);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('✅ Unregistered from event')),
           );
         }
       } else {
-        // Register
-        await eventRef.update({
-          'registrations': FieldValue.arrayUnion([currentUserId]),
-          'registrationCount': FieldValue.increment(1),
-        });
+        await SupabaseService.registerForCampaign(eventId, {});
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('🎉 Successfully registered for event!')),
@@ -837,18 +805,11 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
   }
 
   Future<void> _registerWithDetails(String eventId, Map<String, dynamic> userDetails) async {
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    final currentUserId = SupabaseService.currentUser?.id;
     if (currentUserId == null) return;
 
     try {
-      final eventRef = FirebaseFirestore.instance.collection('campaigns').doc(eventId);
-      
-      // Add user registration with details
-      await eventRef.update({
-        'registrations': FieldValue.arrayUnion([currentUserId]),
-        'registrationCount': FieldValue.increment(1),
-        'registrationDetails.$currentUserId': userDetails,
-      });
+      await SupabaseService.registerForCampaign(eventId, userDetails);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

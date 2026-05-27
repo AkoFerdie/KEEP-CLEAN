@@ -1,10 +1,8 @@
 // File: lib/profile_page.dart
 import 'dart:typed_data';
-import 'dart:io' show File; // only available on mobile
+import 'dart:io' show File;
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/supabase_service.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -34,6 +32,7 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _isUploading = false;
   String? _currentProfileImageUrl;
   String _username = '';
+  String _email = '';
 
   @override
   void initState() {
@@ -42,26 +41,29 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _loadProfileData() async {
-    final User? user = FirebaseAuth.instance.currentUser;
+    final user = SupabaseService.currentUser;
     if (user != null) {
       try {
-        final doc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
-        if (doc.exists) {
-          final data = doc.data()!;
+        final data = await SupabaseService.getUserProfile(user.id);
+        if (data != null && mounted) {
+          setState(() {
+            _username = data['username'] ?? user.userMetadata?['username'] ?? '';
+            _currentProfileImageUrl = data['profile_image_url'] ?? '';
+            _email = data['email'] ?? user.email ?? '';
+          });
+        } else {
+          final emailToSave = user.email ?? '';
+          await SupabaseService.upsertUserProfile(user.id, {
+            'username': user.userMetadata?['username'] ?? 'User',
+            'email': emailToSave,
+            'role': 'User',
+          });
           if (mounted) {
             setState(() {
-              _username = data['username'] ?? '';
-              _currentProfileImageUrl = data['profileImageUrl'] ?? '';
+              _username = user.userMetadata?['username'] ?? '';
+              _email = emailToSave;
             });
           }
-        } else {
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .set({'profileImageUrl': ''});
         }
       } catch (e) {
         debugPrint('Error loading profile: $e');
@@ -112,7 +114,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _uploadImageAndSaveUrl() async {
-    final User? user = FirebaseAuth.instance.currentUser;
+    final user = SupabaseService.currentUser;
     if (user == null) return;
 
     if (_profileImage == null && _webImage == null) return;
@@ -124,37 +126,15 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     try {
-      String fileName =
-          '${user.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final imageData = kIsWeb && _webImage != null ? _webImage! : await _profileImage!.readAsBytes();
+      
+      final downloadUrl = await SupabaseService.uploadImage(
+        imageData: imageData,
+        bucket: 'profile_pictures',
+        fileName: '${user.id}_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
 
-      Reference storageRef = FirebaseStorage.instance
-          .ref()
-          .child('profile_pictures')
-          .child(fileName);
-
-      UploadTask uploadTask;
-      if (kIsWeb && _webImage != null) {
-        uploadTask = storageRef.putData(
-          _webImage!,
-          SettableMetadata(contentType: 'image/jpeg'),
-        );
-      } else if (_profileImage != null) {
-        Uint8List imageData = await _profileImage!.readAsBytes();
-        uploadTask = storageRef.putData(
-          imageData,
-          SettableMetadata(contentType: 'image/jpeg'),
-        );
-      } else {
-        return;
-      }
-
-      TaskSnapshot taskSnapshot = await uploadTask;
-      String downloadUrl = await taskSnapshot.ref.getDownloadURL();
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .update({'profileImageUrl': downloadUrl});
+      await SupabaseService.updateUserProfile(user.id, {'profile_image_url': downloadUrl});
 
       if (mounted) {
         setState(() {
@@ -169,7 +149,7 @@ class _ProfilePageState extends State<ProfilePage> {
         );
       }
     } catch (e) {
-      print("Error uploading image: $e");
+      debugPrint("Error uploading image: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Failed to update profile picture: $e")),
@@ -264,7 +244,7 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final userFullName = (_username.isNotEmpty) ? _username : 'User';
-    final userEmail = widget.email ?? '';
+    final userEmail = _email.isNotEmpty ? _email : (widget.email.isNotEmpty ? widget.email : 'No email');
 
     ImageProvider profileImageProvider;
     if (_webImage != null) {
@@ -335,7 +315,7 @@ class _ProfilePageState extends State<ProfilePage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFF4CAF50).withOpacity(0.1),
+                color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: const Text(
@@ -349,13 +329,10 @@ class _ProfilePageState extends State<ProfilePage> {
             // ── Stats Row ──
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('waste_requests')
-                    .where('createdBy', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
-                    .snapshots(),
+              child: StreamBuilder<List<Map<String, dynamic>>>(
+                stream: SupabaseService.getUserWasteRequestsStream(SupabaseService.currentUser?.id ?? ''),
                 builder: (context, snapshot) {
-                  final reportCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                  final reportCount = snapshot.hasData ? snapshot.data!.length : 0;
                   return Row(
                     children: [
                       _buildStatCard("Campaigns", "0", Icons.campaign_outlined),
@@ -384,20 +361,16 @@ class _ProfilePageState extends State<ProfilePage> {
                   const SizedBox(height: 8),
                   _buildMenuCard([
                     _buildMenuItem(Icons.dashboard_outlined, "Dashboard", "View your activity", () async {
-                      final userDoc = await FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(FirebaseAuth.instance.currentUser?.uid)
-                          .get();
-                      final role = userDoc.data()?['role'] ?? '';
+                      final userProfile = await SupabaseService.getUserProfile(SupabaseService.currentUser?.id ?? '');
+                      final role = userProfile?['role'] ?? '';
                       
-                      if (mounted) {
-                        if (role == 'Government Company (Hysacam)') {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const HysacamDashboard()));
-                        } else if (role == 'Organization / Volunteer') {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const VolunteerDashboard()));
-                        } else {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
-                        }
+                      if (!mounted) return;
+                      if (role == 'Government Company (Hysacam)') {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const HysacamDashboard()));
+                      } else if (role == 'Organization / Volunteer') {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const VolunteerDashboard()));
+                      } else {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
                       }
                     }),
                     _buildMenuItem(Icons.person_outline, "Edit Profile", "Update your information", () {
@@ -451,14 +424,13 @@ class _ProfilePageState extends State<ProfilePage> {
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: () async {
-                        await FirebaseAuth.instance.signOut();
-                        if (mounted) {
-                          Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(builder: (_) => const SignInPage()),
-                            (route) => false,
-                          );
-                        }
+                        await SupabaseService.signOut();
+                        if (!mounted) return;
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(builder: (_) => const SignInPage()),
+                          (route) => false,
+                        );
                       },
                       icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
                       label: const Text("Log Out",
@@ -524,7 +496,7 @@ class _ProfilePageState extends State<ProfilePage> {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFF4CAF50).withOpacity(0.1),
+          color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(icon, color: const Color(0xFF4CAF50), size: 20),
@@ -534,7 +506,7 @@ class _ProfilePageState extends State<ProfilePage> {
       trailing: Icon(
         Icons.arrow_forward_ios_rounded, 
         size: 14, 
-        color: ThemeHelper.getSecondaryTextColor(context).withOpacity(0.7),
+        color: ThemeHelper.getSecondaryTextColor(context).withValues(alpha: 0.7),
       ),
     );
   }

@@ -1,6 +1,9 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
+import '../services/supabase_service.dart';
 import '../utils/theme_helper.dart';
 
 class ReportWasteForm extends StatefulWidget {
@@ -28,6 +31,20 @@ class _ReportWasteFormState extends State<ReportWasteForm> {
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   bool _isLoading = false;
+  File? _selectedFile;
+  Uint8List? _webImage;
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickImage() async {
+    final XFile? file = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (file == null) return;
+    if (kIsWeb) {
+      final bytes = await file.readAsBytes();
+      setState(() { _webImage = bytes; _selectedFile = null; });
+    } else {
+      setState(() { _selectedFile = File(file.path); _webImage = null; });
+    }
+  }
 
   @override
   void dispose() {
@@ -50,31 +67,38 @@ class _ReportWasteFormState extends State<ReportWasteForm> {
     setState(() => _isLoading = true);
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception("User not logged in");
+      List<String> imageUrls = [];
+      if (_selectedFile != null || _webImage != null) {
+        final url = await SupabaseService.uploadImage(
+          imageData: kIsWeb ? _webImage! : _selectedFile!,
+          bucket: 'waste-images',
+          folder: 'reports',
+        );
+        imageUrls = [url];
+      }
 
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      final username = userDoc.data()?['username'] ?? 'Anonymous';
+      final user = SupabaseService.currentUser;
+      final profile = user != null
+          ? await SupabaseService.getUserProfile(user.id)
+          : null;
+      final username = profile?['username'] ?? user?.email ?? 'Anonymous';
 
-      final pickupDateTime = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
-        _selectedTime!.hour,
-        _selectedTime!.minute,
-      );
-
-      await FirebaseFirestore.instance.collection('hysacam_reports').add({
+      await SupabaseService.client.from('hysacam_reports').insert({
         'location': _selectedLocation!,
         'phone': _phoneController.text.trim(),
-        'pickupTime': Timestamp.fromDate(pickupDateTime),
+        'pickup_time': DateTime(
+          _selectedDate!.year,
+          _selectedDate!.month,
+          _selectedDate!.day,
+          _selectedTime!.hour,
+          _selectedTime!.minute,
+        ).toIso8601String(),
         'description': _descriptionController.text.trim(),
-        'imageUrls': [],
-        'createdBy': user.uid,
-        'reportedBy': username,
-        'status': 'pending',
-        'reportType': 'waste_report',
-        'createdAt': FieldValue.serverTimestamp(),
+        'image_urls': imageUrls,
+        'reported_by': username,
+        'created_by': user?.id ?? '',
+        'status': 'open',
+        'created_at': DateTime.now().toIso8601String(),
       });
 
       if (mounted) {
@@ -142,11 +166,24 @@ class _ReportWasteFormState extends State<ReportWasteForm> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 0,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - 20,
+                ),
+                child: IntrinsicHeight(
+                  child: Column(
+                    children: [
             Text(
               "Fill in the details below",
               style: TextStyle(fontSize: 14, color: ThemeHelper.getSecondaryTextColor(context)),
@@ -196,11 +233,11 @@ class _ReportWasteFormState extends State<ReportWasteForm> {
                     child: AbsorbPointer(
                       child: TextFormField(
                         decoration: _inputDecoration(
-                          label: "Pickup Date",
-                          icon: Icons.calendar_today,
-                          hint: _selectedDate == null
-                              ? "Select date"
+                          label: _selectedDate == null
+                              ? "Pickup Date"
                               : "${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}",
+                          icon: Icons.calendar_today,
+                          hint: "Select date",
                         ),
                       ),
                     ),
@@ -213,11 +250,11 @@ class _ReportWasteFormState extends State<ReportWasteForm> {
                     child: AbsorbPointer(
                       child: TextFormField(
                         decoration: _inputDecoration(
-                          label: "Pickup Time",
-                          icon: Icons.access_time,
-                          hint: _selectedTime == null
-                              ? "Select time"
+                          label: _selectedTime == null
+                              ? "Pickup Time"
                               : _selectedTime!.format(context),
+                          icon: Icons.access_time,
+                          hint: "Select time",
                         ),
                       ),
                     ),
@@ -239,28 +276,41 @@ class _ReportWasteFormState extends State<ReportWasteForm> {
             ),
             const SizedBox(height: 20),
 
-            // Image Upload (Disabled)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: ThemeHelper.getSurfaceColor(context),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: ThemeHelper.getBorderColor(context), width: 2),
-              ),
-              child: Column(
-                children: [
-                  Icon(Icons.cloud_upload_outlined, size: 48, color: ThemeHelper.getSecondaryTextColor(context)),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Upload Image",
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: ThemeHelper.getTextColor(context)),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "Image upload coming soon",
-                    style: TextStyle(fontSize: 12, color: ThemeHelper.getSecondaryTextColor(context)),
-                  ),
-                ],
+            // Image Upload
+            GestureDetector(
+              onTap: _pickImage,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: ThemeHelper.getSurfaceColor(context),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: ThemeHelper.getBorderColor(context), width: 2),
+                ),
+                child: _selectedFile != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(_selectedFile!, height: 150, width: double.infinity, fit: BoxFit.cover),
+                      )
+                    : _webImage != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.memory(_webImage!, height: 150, width: double.infinity, fit: BoxFit.cover),
+                          )
+                        : Column(
+                            children: [
+                              Icon(Icons.cloud_upload_outlined, size: 48, color: ThemeHelper.getSecondaryTextColor(context)),
+                              const SizedBox(height: 8),
+                              Text(
+                                "Upload Image",
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: ThemeHelper.getTextColor(context)),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "Tap to select a photo",
+                                style: TextStyle(fontSize: 12, color: ThemeHelper.getSecondaryTextColor(context)),
+                              ),
+                            ],
+                          ),
               ),
             ),
             const SizedBox(height: 24),
@@ -289,7 +339,12 @@ class _ReportWasteFormState extends State<ReportWasteForm> {
               ),
             ),
           ],
-        ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

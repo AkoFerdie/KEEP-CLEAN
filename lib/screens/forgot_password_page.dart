@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // ✅ ADD THIS
+import '../services/supabase_service.dart';
 import 'password_reset_confirmation_page.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
@@ -33,8 +33,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     setState(() => _isLoading = true);
 
     try {
-      // ✅ REAL Firebase password reset
-      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      await SupabaseService.resetPassword(email);
 
       if (!mounted) return;
 
@@ -44,21 +43,17 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           builder: (_) => const PasswordResetConfirmationPage(),
         ),
       );
-    } on FirebaseAuthException catch (e) {
+    } catch (e) {
       String message = "Failed to send reset email";
 
-      if (e.code == 'user-not-found') {
+      if (e.toString().contains('User not found')) {
         message = "No user found with this email";
-      } else if (e.code == 'invalid-email') {
+      } else if (e.toString().contains('Unable to validate email address')) {
         message = "Invalid email address";
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Something went wrong")),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -98,11 +93,23 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 20,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - 40,
+                ),
+                child: IntrinsicHeight(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
               const SizedBox(height: 16),
 
               // Icon badge
@@ -247,7 +254,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 ),
               ),
             ],
-          ),
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );

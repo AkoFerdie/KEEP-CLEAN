@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'forgot_password_page.dart';
 import '../utils/theme_helper.dart';
 import '../main.dart';
+import '../services/supabase_service.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -13,6 +14,11 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   bool _notificationsEnabled = true;
   bool _locationEnabled = true;
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
 
   bool get _darkModeEnabled => themeNotifier.value == ThemeMode.dark;
 
@@ -110,7 +116,7 @@ class _SettingsPageState extends State<SettingsPage> {
             }),
             Divider(height: 1, indent: 56, color: ThemeHelper.getBorderColor(context)),
             _buildArrowTile(Icons.star_outline_rounded, "Rate the App", "Share your feedback", () {
-              _showSnack("Rate app coming soon!");
+              _showRatingDialog();
             }),
             Divider(height: 1, indent: 56, color: ThemeHelper.getBorderColor(context)),
             _buildArrowTile(Icons.info_outline_rounded, "App Version", "v1.0.0", null),
@@ -154,7 +160,7 @@ class _SettingsPageState extends State<SettingsPage> {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFF4CAF50).withOpacity(0.1),
+          color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(icon, color: const Color(0xFF4CAF50), size: 20),
@@ -188,7 +194,7 @@ class _SettingsPageState extends State<SettingsPage> {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFF4CAF50).withOpacity(0.1),
+          color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(icon, color: const Color(0xFF4CAF50), size: 20),
@@ -212,9 +218,252 @@ class _SettingsPageState extends State<SettingsPage> {
           ? Icon(
               Icons.arrow_forward_ios_rounded, 
               size: 14, 
-              color: ThemeHelper.getSecondaryTextColor(context).withOpacity(0.7),
+              color: ThemeHelper.getSecondaryTextColor(context).withValues(alpha: 0.7),
             )
           : null,
+    );
+  }
+
+  void _showRatingDialog() {
+    int selectedStars = 0;
+    final reviewController = TextEditingController();
+    final labels = ['Terrible', 'Bad', 'Okay', 'Good', 'Excellent'];
+    final emojis = ['😞', '😕', '😐', '😊', '🤩'];
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              backgroundColor: ThemeHelper.getCardColor(context),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.star_rounded, color: Color(0xFF4CAF50), size: 36),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Rate Keep It Clean',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: ThemeHelper.getTextColor(context),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'How would you rate your experience?',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Stars
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: List.generate(5, (i) {
+                        final filled = i < selectedStars;
+                        return GestureDetector(
+                          onTap: () => setDialogState(() => selectedStars = i + 1),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 3),
+                            child: Icon(
+                              filled ? Icons.star_rounded : Icons.star_outline_rounded,
+                              size: 36,
+                              color: filled ? const Color(0xFFFFC107) : Colors.grey[400],
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // Label & emoji
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: selectedStars > 0
+                          ? Row(
+                              key: ValueKey(selectedStars),
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(emojis[selectedStars - 1],
+                                    style: const TextStyle(fontSize: 20)),
+                                const SizedBox(width: 6),
+                                Text(
+                                  labels[selectedStars - 1],
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF4CAF50),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Text(
+                              'Tap a star to rate',
+                              key: const ValueKey(0),
+                              style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                            ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Review text field
+                    TextField(
+                      controller: reviewController,
+                      maxLines: 3,
+                      maxLength: 200,
+                      style: TextStyle(fontSize: 13, color: ThemeHelper.getTextColor(context)),
+                      decoration: InputDecoration(
+                        hintText: 'Write a review (optional)...',
+                        hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+                        filled: true,
+                        fillColor: ThemeHelper.getBackgroundColor(context),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.all(12),
+                        counterStyle: TextStyle(color: Colors.grey[400], fontSize: 11),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              reviewController.dispose();
+                              Navigator.pop(context);
+                            },
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                              side: BorderSide(color: Colors.grey[300]!),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: Text('Cancel', style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: selectedStars == 0
+                                ? null
+                                : () async {
+                                    final review = reviewController.text.trim();
+                                    reviewController.dispose();
+                                    Navigator.pop(context);
+                                    await _submitRating(selectedStars, review);
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF4CAF50),
+                              disabledBackgroundColor: Colors.grey[300],
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            child: const Text('Submit', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _submitRating(int stars, String review) async {
+    try {
+      final user = SupabaseService.currentUser;
+      await SupabaseService.client.from('app_ratings').insert({
+        'stars': stars,
+        'review': review,
+        'user_id': user?.id ?? 'anonymous',
+        'user_email': user?.email ?? '',
+        'created_at': DateTime.now().toIso8601String(),
+      });
+      if (mounted) _showThankYouDialog(stars);
+    } catch (e) {
+      if (mounted) _showSnack('Failed to submit rating. Please try again.');
+    }
+  }
+
+  void _showThankYouDialog(int stars) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        backgroundColor: ThemeHelper.getCardColor(context),
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('🎉', style: TextStyle(fontSize: 48)),
+              const SizedBox(height: 16),
+              Text(
+                'Thank You!',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: ThemeHelper.getTextColor(context),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Your feedback helps us improve\nKeep It Clean for everyone.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.grey[600], height: 1.5),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  stars,
+                  (_) => const Icon(Icons.star_rounded, color: Color(0xFFFFC107), size: 24),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4CAF50),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  child: const Text('Done', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

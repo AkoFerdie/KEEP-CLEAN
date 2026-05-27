@@ -1,23 +1,24 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import '../services/supabase_service.dart';
 import 'package:flutter/foundation.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-
+  static get currentUser => SupabaseService.currentUser;
+  
+  static Future<void> signOut() async {
+    await SupabaseService.signOut();
+  }
+  
+  static bool get isSignedIn => SupabaseService.isSignedIn;
+  
   Future<void> signUp(String email, String password) async {
     try {
-      UserCredential userCredential =
-          await _auth.createUserWithEmailAndPassword(
+      await SupabaseService.signUp(
         email: email,
         password: password,
+        username: email.split('@')[0],
+        role: 'User',
       );
-
-      User? user = userCredential.user;
-
-      if (user != null) {
-        await user.sendEmailVerification();
-        debugPrint("Verification email sent");
-      }
+      debugPrint("Account created successfully");
     } catch (e) {
       debugPrint(e.toString());
     }

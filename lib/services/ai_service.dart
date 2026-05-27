@@ -81,44 +81,52 @@ Be conversational, helpful, and knowledgeable on all topics!
 
   static Future<String> _sendMessageGemini(String userMessage) async {
     try {
-      // Use the available Gemini 2.5 Flash model
-      const String geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-      
-      final response = await http.post(
-        Uri.parse('$geminiUrl?key=$_geminiKey'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'contents': [{
-            'parts': [{
-              'text': '$_systemPrompt\n\nUser: $userMessage'
-            }]
-          }],
-          'generationConfig': {
-            'maxOutputTokens': 1000,
-            'temperature': 0.7,
-          }
-        }),
-      );
+      // Try models in order until one works
+      final models = [
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-1.5-flash-8b',
+        'gemini-pro',
+      ];
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['candidates'] != null && data['candidates'].isNotEmpty) {
-          return data['candidates'][0]['content']['parts'][0]['text'].toString().trim();
+      for (final model in models) {
+        final url = 'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent';
+        final response = await http.post(
+          Uri.parse('$url?key=$_geminiKey'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'contents': [{
+              'parts': [{
+                'text': '$_systemPrompt\n\nUser: $userMessage'
+              }]
+            }],
+            'generationConfig': {
+              'maxOutputTokens': 1000,
+              'temperature': 0.7,
+            }
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          if (data['candidates'] != null && data['candidates'].isNotEmpty) {
+            return data['candidates'][0]['content']['parts'][0]['text'].toString().trim();
+          }
+        } else if (response.statusCode == 404) {
+          // Model not available, try next
+          continue;
+        } else if (response.statusCode == 403) {
+          final errorData = jsonDecode(response.body);
+          return "🚫 ${errorData['error']?['message'] ?? 'API key permission denied'}";
+        } else if (response.statusCode == 429) {
+          return "⏳ Rate limit reached. Please wait a moment and try again.";
         } else {
-          return "🤖 I couldn't generate a response. The content might have been filtered for safety. Please try rephrasing your question.";
+          final errorData = jsonDecode(response.body);
+          return "❌ API error: ${errorData['error']?['message'] ?? response.statusCode}";
         }
-      } else if (response.statusCode == 400) {
-        final errorData = jsonDecode(response.body);
-        return "🔑 API Error: ${errorData['error']['message'] ?? 'Invalid request format'}";
-      } else if (response.statusCode == 403) {
-        return "🚫 Your API key doesn't have permission. Please check your API key at: https://makersuite.google.com/app/apikey";
-      } else if (response.statusCode == 404) {
-        return "❌ Model not found. Please try again or contact support.";
-      } else if (response.statusCode == 429) {
-        return "⏳ Rate limit reached. Please wait a moment and try again.";
       }
-      
-      return "❌ Gemini API error ${response.statusCode}: ${response.body}";
+
+      return "❌ No available Gemini models found for your API key. Please check https://aistudio.google.com/app/apikey";
     } catch (e) {
       return "🌐 Network error: $e\n\nPlease check your internet connection and try again.";
     }

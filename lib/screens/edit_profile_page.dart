@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/supabase_service.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -43,17 +42,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Future<void> _loadUserData() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = SupabaseService.currentUser;
     if (user == null) return;
 
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-
-      if (doc.exists) {
-        final data = doc.data()!;
+      final data = await SupabaseService.getUserProfile(user.id);
+      
+      if (data != null) {
         _usernameController.text = data['username'] ?? '';
         _phoneController.text = data['phone'] ?? '';
         _bioController.text = data['bio'] ?? '';
@@ -70,25 +65,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final user = FirebaseAuth.instance.currentUser;
+    final user = SupabaseService.currentUser;
     if (user == null) return;
 
     setState(() => _isSaving = true);
 
     try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .update({
+      await SupabaseService.updateUserProfile(user.id, {
         'username': _usernameController.text.trim(),
         'phone': _phoneController.text.trim(),
         'bio': _bioController.text.trim(),
         'role': _selectedRole,
-        'updatedAt': FieldValue.serverTimestamp(),
       });
-
-      // Also update Firebase Auth display name
-      await user.updateDisplayName(_usernameController.text.trim());
 
       if (mounted) {
         _showSnack('Profile updated successfully!');
@@ -157,13 +145,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(color: Color(0xFF4CAF50)))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  padding: EdgeInsets.only(
+                    left: 20,
+                    right: 20,
+                    top: 0,
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                  ),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight - 20,
+                    ),
+                    child: IntrinsicHeight(
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                     // ── Section: Personal Info ──
                     _sectionLabel('Personal Information'),
                     _buildCard([
@@ -308,9 +308,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     ),
 
                     const SizedBox(height: 30),
-                  ],
-                ),
-              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
     );
   }

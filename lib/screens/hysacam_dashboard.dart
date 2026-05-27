@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import '../services/supabase_service.dart';
 
 class HysacamDashboard extends StatefulWidget {
   const HysacamDashboard({super.key});
@@ -123,24 +122,18 @@ class _LocationReportCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('hysacam_reports')
-          .where('location', isEqualTo: location)
-          .snapshots(),
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: SupabaseService.client
+          .from('hysacam_reports')
+          .stream(primaryKey: ['id'])
+          .eq('location', location)
+          .order('created_at', ascending: false),
       builder: (context, snapshot) {
-        final docs = snapshot.hasData ? [...snapshot.data!.docs] : [];
-        docs.sort((a, b) {
-          final aData = a.data() as Map<String, dynamic>;
-          final bData = b.data() as Map<String, dynamic>;
-          final aTime = aData['createdAt'];
-          final bTime = bData['createdAt'];
-          if (aTime == null || bTime == null) return 0;
-          final aMillis = (aTime is Timestamp) ? aTime.millisecondsSinceEpoch : 0;
-          final bMillis = (bTime is Timestamp) ? bTime.millisecondsSinceEpoch : 0;
-          return bMillis.compareTo(aMillis);
-        });
+        final docs = snapshot.hasData
+            ? snapshot.data!.where((d) => d['location'] == location && d['status'] != 'done').toList()
+            : [];
         final reportCount = docs.length;
+        final countColor = reportCount < 4 ? Colors.green : Colors.red;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 16),
@@ -169,20 +162,20 @@ class _LocationReportCard extends StatelessWidget {
               ),
               subtitle: Text(
                 '$reportCount ${reportCount == 1 ? 'report' : 'reports'}',
-                style: const TextStyle(fontSize: 12, color: Colors.black45),
+                style: TextStyle(fontSize: 12, color: countColor),
               ),
               trailing: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: reportCount >= 5 ? Colors.red.withOpacity(0.12) : Colors.green.withOpacity(0.12),
+                  color: countColor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  reportCount > 0 ? '$reportCount' : '0',
+                  '$reportCount',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: reportCount >= 5 ? Colors.red : Colors.green,
+                    color: countColor,
                   ),
                 ),
               ),
@@ -205,9 +198,9 @@ class _LocationReportCard extends StatelessWidget {
                     ),
                   )
                 else
-                  ...docs.map((doc) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    return _ReportItem(data: data, docId: doc.id);
+                  ...docs.map((data) {
+                    final docId = data['id']?.toString() ?? '';
+                    return _ReportItem(data: data, docId: docId);
                   }),
               ],
             ),
@@ -246,7 +239,7 @@ class _ReportItem extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      data['reportedBy'] ?? 'Anonymous',
+                      data['reported_by'] ?? 'Anonymous',
                       style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87),
                     ),
                     const SizedBox(height: 2),
@@ -290,6 +283,18 @@ class _ReportItem extends StatelessWidget {
           ),
           if (status != 'done') ...[
             const SizedBox(height: 10),
+            // Waste image
+            if ((data['image_urls'] as List?)?.isNotEmpty == true)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  data['image_urls'][0],
+                  width: double.infinity,
+                  fit: BoxFit.fitWidth,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+            const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -310,7 +315,10 @@ class _ReportItem extends StatelessWidget {
   }
 
   Future<void> _markAsDone(BuildContext context, String docId) async {
-    await FirebaseFirestore.instance.collection('hysacam_reports').doc(docId).update({'status': 'done'});
+    await SupabaseService.client
+        .from('hysacam_reports')
+        .update({'status': 'done'})
+        .eq('id', docId);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('✅ Marked as done!'), backgroundColor: Color(0xFF4CAF50)),
@@ -370,13 +378,11 @@ class _PatrolScheduleTabState extends State<_PatrolScheduleTab> {
     setState(() => _isLoading = true);
 
     try {
-      await FirebaseFirestore.instance.collection('patrol_schedule').add({
-        'location': _locationController.text.trim(),
-        'time': _timeController.text.trim(),
-        'date': _dateController.text.trim(),
-        'createdBy': FirebaseAuth.instance.currentUser?.uid,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await SupabaseService.createPatrolSchedule(
+        location: _locationController.text.trim(),
+        time: _timeController.text.trim(),
+        date: _dateController.text.trim(),
+      );
 
       _locationController.clear();
       _timeController.clear();
@@ -488,14 +494,14 @@ class _PatrolScheduleTabState extends State<_PatrolScheduleTab> {
           const Text('Upcoming Patrols', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
           const SizedBox(height: 12),
 
-          StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('patrol_schedule').snapshots(),
+          StreamBuilder<List<Map<String, dynamic>>>(
+            stream: SupabaseService.getPatrolScheduleStream(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator(color: Color(0xFF4CAF50)));
               }
 
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -507,22 +513,12 @@ class _PatrolScheduleTabState extends State<_PatrolScheduleTab> {
                 );
               }
 
-              final docs = [...snapshot.data!.docs];
-              docs.sort((a, b) {
-                final aData = a.data() as Map<String, dynamic>;
-                final bData = b.data() as Map<String, dynamic>;
-                final aTime = aData['createdAt'];
-                final bTime = bData['createdAt'];
-                if (aTime == null || bTime == null) return 0;
-                final aMillis = (aTime is Timestamp) ? aTime.millisecondsSinceEpoch : 0;
-                final bMillis = (bTime is Timestamp) ? bTime.millisecondsSinceEpoch : 0;
-                return bMillis.compareTo(aMillis);
-              });
+              final docs = snapshot.data!;
 
               return Column(
-                children: docs.map((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return _PatrolCard(data: data, docId: doc.id);
+                children: docs.map((data) {
+                  final docId = data['id'] as String;
+                  return _PatrolCard(data: data, docId: docId);
                 }).toList(),
               );
             },
@@ -580,6 +576,10 @@ class _PatrolCard extends StatelessWidget {
             ),
           ),
           IconButton(
+            icon: const Icon(Icons.edit_outlined, color: Color(0xFF4CAF50), size: 20),
+            onPressed: () => _showEditDialog(context),
+          ),
+          IconButton(
             icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
             onPressed: () => _deletePatrol(context, docId),
           ),
@@ -588,8 +588,110 @@ class _PatrolCard extends StatelessWidget {
     );
   }
 
+  Future<void> _showEditDialog(BuildContext context) async {
+    final locations = ['Mile 17', 'OIC', 'Bokwaongo Market', 'Before John Chi', 'Molyko', 'Great Soppo'];
+    String selectedLocation = data['location'] ?? locations.first;
+    final timeController = TextEditingController(text: data['time'] ?? '');
+    final dateController = TextEditingController(text: data['date'] ?? '');
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Edit Patrol', style: TextStyle(color: Color(0xFF4CAF50), fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                value: selectedLocation,
+                items: locations.map((loc) => DropdownMenuItem(value: loc, child: Text(loc))).toList(),
+                onChanged: (val) => setDialogState(() => selectedLocation = val ?? selectedLocation),
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.location_on, color: Color(0xFF4CAF50)),
+                  filled: true,
+                  fillColor: const Color(0xFFF9FFF9),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: ctx,
+                    initialDate: DateTime.tryParse(dateController.text) ?? DateTime.now(),
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime(2100),
+                  );
+                  if (picked != null) dateController.text = '${picked.year}-${picked.month}-${picked.day}';
+                },
+                child: AbsorbPointer(
+                  child: TextField(
+                    controller: dateController,
+                    decoration: InputDecoration(
+                      hintText: 'Select Date',
+                      prefixIcon: const Icon(Icons.calendar_today, color: Color(0xFF4CAF50)),
+                      filled: true,
+                      fillColor: const Color(0xFFF9FFF9),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: () async {
+                  final picked = await showTimePicker(context: ctx, initialTime: TimeOfDay.now());
+                  if (picked != null) timeController.text = picked.format(ctx);
+                },
+                child: AbsorbPointer(
+                  child: TextField(
+                    controller: timeController,
+                    decoration: InputDecoration(
+                      hintText: 'Select Time',
+                      prefixIcon: const Icon(Icons.access_time, color: Color(0xFF4CAF50)),
+                      filled: true,
+                      fillColor: const Color(0xFFF9FFF9),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: Colors.black45)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                await SupabaseService.client.from('patrol_schedules').update({
+                  'location': selectedLocation,
+                  'date': dateController.text.trim(),
+                  'time': timeController.text.trim(),
+                }).eq('id', docId);
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(content: Text('✅ Patrol updated!'), backgroundColor: Color(0xFF4CAF50)),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4CAF50),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Save', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _deletePatrol(BuildContext context, String docId) async {
-    await FirebaseFirestore.instance.collection('patrol_schedule').doc(docId).delete();
+    await SupabaseService.deletePatrolSchedule(docId);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('🗑️ Patrol deleted'), backgroundColor: Colors.redAccent),

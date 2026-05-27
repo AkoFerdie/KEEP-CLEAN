@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/supabase_service.dart';
 import '../services/ai_service.dart';
 
 class AIChatPage extends StatefulWidget {
@@ -36,8 +35,8 @@ class _AIChatPageState extends State<AIChatPage> with TickerProviderStateMixin {
   }
 
   void _addWelcomeMessage() {
-    final user = FirebaseAuth.instance.currentUser;
-    final userName = user?.displayName?.split(' ').first ?? 'there';
+    final user = SupabaseService.currentUser;
+    final userName = user?.userMetadata?['username']?.toString().split(' ').first ?? 'there';
     
     setState(() {
       _messages.add(ChatMessage(
@@ -251,7 +250,12 @@ class _AIChatPageState extends State<AIChatPage> with TickerProviderStateMixin {
 
         // Input Area
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+          ),
           decoration: BoxDecoration(
             color: Colors.white,
             border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2))),
