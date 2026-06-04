@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../services/supabase_service.dart';
 import 'getting_started_page.dart';
+import 'home_page.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -9,83 +11,121 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with TickerProviderStateMixin {
+  static const _logoImage = AssetImage('assets/front_logo.png');
+  static const _gettingStartedImage = AssetImage('assets/Picture2.png');
+
   late AnimationController _fadeController;
   late AnimationController _scaleController;
   late AnimationController _slideController;
   late AnimationController _rotateController;
-  
+
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _rotateAnimation;
 
   bool _disposed = false;
+  bool _isPreparingAssets = false;
+  bool _assetsReady = false;
 
   @override
   void initState() {
     super.initState();
-    
+
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
-    
+
     _scaleController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
-    
+
     _slideController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    
+
     _rotateController = AnimationController(
       duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
-    
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeInOut,
-    ));
-    
-    _scaleAnimation = Tween<double>(
-      begin: 0.5,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _scaleController,
-      curve: Curves.elasticOut,
-    ));
-    
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.5),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutBack,
-    ));
-    
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.elasticOut),
+    );
+
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero).animate(
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOutBack),
+        );
+
     _rotateAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _rotateController,
-      curve: Curves.linear,
-    ));
-    
-    _startAnimations();
-    _navigateToGettingStarted();
+    ).animate(CurvedAnimation(parent: _rotateController, curve: Curves.linear));
   }
-  
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    precacheImage(const AssetImage('assets/front_logo.png'), context);
+    if (!_assetsReady && !_isPreparingAssets) {
+      _prepareSplash();
+    }
+  }
+
+  Future<void> _prepareSplash() async {
+    _isPreparingAssets = true;
+
+    await Future.wait([
+      precacheImage(_logoImage, context),
+      precacheImage(_gettingStartedImage, context),
+    ]);
+
+    if (!mounted || _disposed) return;
+
+    setState(() => _assetsReady = true);
+
+    // If the user already returned signed in from Google, go directly to HomePage.
+    if (SupabaseService.currentUser != null) {
+      _navigateToHomePage();
+      return;
+    }
+
+    _startAnimations();
+    _navigateToGettingStarted();
+  }
+
+  void _navigateToHomePage() {
+    if (!mounted || _disposed) return;
+
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const HomePage(),
+        transitionDuration: const Duration(milliseconds: 500),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return SlideTransition(
+            position:
+                Tween<Offset>(
+                  begin: const Offset(1.0, 0.0),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+                ),
+            child: child,
+          );
+        },
+      ),
+    );
   }
 
   _startAnimations() async {
@@ -104,31 +144,61 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
   _navigateToGettingStarted() async {
     await Future.delayed(const Duration(milliseconds: 3500));
-    if (mounted) {
-      SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    if (!mounted) return;
+
+    // If the user is already signed in, go directly to HomePage.
+    final user = SupabaseService.currentUser;
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
         systemNavigationBarColor: Colors.transparent,
         systemNavigationBarIconBrightness: Brightness.dark,
-      ));
+      ),
+    );
+
+    if (user != null) {
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const GettingStartedPage(),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const HomePage(),
           transitionDuration: const Duration(milliseconds: 500),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(1.0, 0.0),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeInOut,
-              )),
+              position:
+                  Tween<Offset>(
+                    begin: const Offset(1.0, 0.0),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+                  ),
               child: child,
             );
           },
         ),
       );
+      return;
     }
+
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const GettingStartedPage(),
+        transitionDuration: const Duration(milliseconds: 500),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return SlideTransition(
+            position:
+                Tween<Offset>(
+                  begin: const Offset(1.0, 0.0),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+                ),
+            child: child,
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -156,11 +226,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF4CAF50),
-                Color(0xFF2E7D32),
-                Color(0xFF1B5E20),
-              ],
+              colors: [Color(0xFF4CAF50), Color(0xFF2E7D32), Color(0xFF1B5E20)],
               stops: [0.0, 0.6, 1.0],
             ),
           ),
@@ -207,7 +273,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   },
                 ),
               ),
-              
+
               // Main content
               FadeTransition(
                 opacity: _fadeAnimation,
@@ -220,40 +286,52 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          SizedBox(height: MediaQuery.of(context).size.height * 0.15),
-                          
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.15,
+                          ),
+
                           // Logo with white background
                           ScaleTransition(
                             scale: _scaleAnimation,
-                            child: Container(
-                              width: 140,
-                              height: 140,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(30),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
-                                    spreadRadius: 3,
-                                    blurRadius: 15,
-                                    offset: const Offset(0, 5),
+                            child: AnimatedOpacity(
+                              opacity: _assetsReady ? 1 : 0,
+                              duration: const Duration(milliseconds: 150),
+                              child: Container(
+                                width: 140,
+                                height: 140,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(30),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.2),
+                                      spreadRadius: 3,
+                                      blurRadius: 15,
+                                      offset: const Offset(0, 5),
+                                    ),
+                                  ],
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Image(
+                                    image: _logoImage,
+                                    fit: BoxFit.contain,
+                                    gaplessPlayback: true,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            const Icon(
+                                              Icons.eco,
+                                              size: 80,
+                                              color: Color(0xFF4CAF50),
+                                            ),
                                   ),
-                                ],
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Image.asset(
-                                  'assets/front_logo.png',
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      const Icon(Icons.eco, size: 80, color: Color(0xFF4CAF50)),
                                 ),
                               ),
                             ),
                           ),
-                          
+
                           const SizedBox(height: 50),
-                          
+
                           // App Title
                           SlideTransition(
                             position: _slideAnimation,
@@ -274,14 +352,17 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                               ),
                             ),
                           ),
-                          
+
                           const SizedBox(height: 15),
-                          
+
                           // Subtitle
                           SlideTransition(
                             position: _slideAnimation,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 8,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.white.withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(20),
@@ -301,9 +382,9 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                               ),
                             ),
                           ),
-                          
+
                           const SizedBox(height: 80),
-                          
+
                           // Enhanced loading indicator
                           SlideTransition(
                             position: _slideAnimation,
@@ -340,8 +421,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                               ],
                             ),
                           ),
-                          
-                          SizedBox(height: MediaQuery.of(context).size.height * 0.2),
+
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.2,
+                          ),
                         ],
                       ),
                     ),

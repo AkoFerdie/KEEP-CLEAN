@@ -5,6 +5,9 @@ import 'second_page.dart';
 class GettingStartedPage extends StatelessWidget {
   const GettingStartedPage({super.key});
 
+  static const _heroImage = AssetImage('assets/Picture2.png');
+  static const _logoImage = AssetImage('assets/front_logo.png');
+
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -31,14 +34,19 @@ class GettingStartedPage extends StatelessWidget {
                         SizedBox(
                           height: h * 0.45,
                           width: double.infinity,
-                          child: Image.asset('assets/Picture2.png', fit: BoxFit.cover),
+                          child: const Image(
+                            image: _heroImage,
+                            fit: BoxFit.cover,
+                            gaplessPlayback: true,
+                          ),
                         ),
                         SizedBox(height: h * 0.015),
                         Center(
-                          child: Image.asset(
-                            'assets/front_logo.png',
+                          child: Image(
+                            image: _logoImage,
                             width: w * 0.22,
                             height: w * 0.22,
+                            gaplessPlayback: true,
                           ),
                         ),
                         SizedBox(height: h * 0.01),

@@ -84,8 +84,10 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
   }
 
   Future<void> _pickTime() async {
-    TimeOfDay? picked =
-        await showTimePicker(context: context, initialTime: TimeOfDay.now());
+    TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
     if (picked != null) {
       _timeController.text = picked.format(context);
     }
@@ -147,9 +149,9 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
         _fileNames.clear();
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Error: ${e.toString()}")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("❌ Error: ${e.toString()}")));
     } finally {
       setState(() => _isLoading = false);
     }
@@ -159,38 +161,71 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
     List<Widget> previews = [];
     if (kIsWeb && _webImages.isNotEmpty) {
       for (int i = 0; i < _webImages.length; i++) {
-        previews.add(Column(
-          children: [
-            Image.memory(_webImages[i], width: 100, height: 100, fit: BoxFit.cover),
-            Text(_fileNames[i], style: TextStyle(fontSize: 12, color: ThemeHelper.getTextColor(context))),
-          ],
-        ));
+        previews.add(
+          Column(
+            children: [
+              Image.memory(
+                _webImages[i],
+                width: 100,
+                height: 100,
+                fit: BoxFit.cover,
+              ),
+              Text(
+                _fileNames[i],
+                style: TextStyle(
+                  fontSize: 12,
+                  color: ThemeHelper.getTextColor(context),
+                ),
+              ),
+            ],
+          ),
+        );
       }
     } else if (!kIsWeb && _selectedFiles.isNotEmpty) {
       for (int i = 0; i < _selectedFiles.length; i++) {
-        previews.add(Column(
-          children: [
-            Image.file(_selectedFiles[i], width: 100, height: 100, fit: BoxFit.cover),
-            Text(_fileNames[i], style: TextStyle(fontSize: 12, color: ThemeHelper.getTextColor(context))),
-          ],
-        ));
+        previews.add(
+          Column(
+            children: [
+              Image.file(
+                _selectedFiles[i],
+                width: 100,
+                height: 100,
+                fit: BoxFit.cover,
+              ),
+              Text(
+                _fileNames[i],
+                style: TextStyle(
+                  fontSize: 12,
+                  color: ThemeHelper.getTextColor(context),
+                ),
+              ),
+            ],
+          ),
+        );
       }
     }
     return previews.isEmpty
         ? const SizedBox.shrink()
-        : Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: previews,
-          );
+        : Wrap(spacing: 8, runSpacing: 8, children: previews);
   }
 
-  InputDecoration _fieldDecoration(String label, String hint, IconData icon, {Widget? suffix}) {
+  InputDecoration _fieldDecoration(
+    String label,
+    String hint,
+    IconData icon, {
+    Widget? suffix,
+  }) {
     return InputDecoration(
       labelText: label,
       hintText: hint,
-      hintStyle: TextStyle(color: ThemeHelper.getSecondaryTextColor(context), fontSize: 13),
-      labelStyle: const TextStyle(color: Color(0xFF4CAF50), fontWeight: FontWeight.w500),
+      hintStyle: TextStyle(
+        color: ThemeHelper.getSecondaryTextColor(context),
+        fontSize: 13,
+      ),
+      labelStyle: const TextStyle(
+        color: Color(0xFF4CAF50),
+        fontWeight: FontWeight.w500,
+      ),
       prefixIcon: Container(
         margin: const EdgeInsets.all(10),
         padding: const EdgeInsets.all(8),
@@ -205,7 +240,10 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
       fillColor: ThemeHelper.getCardColor(context),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: ThemeHelper.getBorderColor(context), width: 1.5),
+        borderSide: BorderSide(
+          color: ThemeHelper.getBorderColor(context),
+          width: 1.5,
+        ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -221,10 +259,7 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
       resizeToAvoidBottomInset: false,
       body: TabBarView(
         controller: _tabController,
-        children: [
-          _buildBrowseEventsTab(),
-          _buildCreateEventTab(),
-        ],
+        children: [_buildBrowseEventsTab(), _buildCreateEventTab()],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -241,9 +276,11 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
       stream: SupabaseService.getCampaignsStream(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: Color(0xFF4CAF50)));
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xFF4CAF50)),
+          );
         }
-        
+
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Center(
             child: Column(
@@ -251,14 +288,24 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
               children: [
                 Icon(Icons.event_outlined, size: 64, color: Colors.grey[400]),
                 const SizedBox(height: 16),
-                Text('No events available', style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.w500)),
+                Text(
+                  'No events available',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                Text('Check back later for cleanup events', style: TextStyle(fontSize: 14, color: Colors.grey[500])),
+                Text(
+                  'Check back later for cleanup events',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                ),
               ],
             ),
           );
         }
-        
+
         return ListView.builder(
           padding: const EdgeInsets.all(16),
           itemCount: snapshot.data!.length,
@@ -281,12 +328,19 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
           // Header
           Text(
             "Event Details",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: ThemeHelper.getTextColor(context)),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: ThemeHelper.getTextColor(context),
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             "Fill in the details to post a cleanup event.",
-            style: TextStyle(fontSize: 13, color: ThemeHelper.getSecondaryTextColor(context)),
+            style: TextStyle(
+              fontSize: 13,
+              color: ThemeHelper.getSecondaryTextColor(context),
+            ),
           ),
           const SizedBox(height: 24),
 
@@ -296,23 +350,29 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
             decoration: BoxDecoration(
               color: ThemeHelper.getCardColor(context),
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                ThemeHelper.getCardShadow(context),
-              ],
+              boxShadow: [ThemeHelper.getCardShadow(context)],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   "Event Details",
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF4CAF50)),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF4CAF50),
+                  ),
                 ),
                 const SizedBox(height: 14),
 
                 // Location
                 TextField(
                   controller: _locationController,
-                  decoration: _fieldDecoration("Location", "e.g. Central Park, Lagos", Icons.location_on),
+                  decoration: _fieldDecoration(
+                    "Location",
+                    "e.g. Central Park, Lagos",
+                    Icons.location_on,
+                  ),
                 ),
                 const SizedBox(height: 14),
 
@@ -326,7 +386,10 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
                         "Date",
                         "Select event date",
                         Icons.calendar_month,
-                        suffix: const Icon(Icons.arrow_drop_down, color: Color(0xFF4CAF50)),
+                        suffix: const Icon(
+                          Icons.arrow_drop_down,
+                          color: Color(0xFF4CAF50),
+                        ),
                       ),
                     ),
                   ),
@@ -343,7 +406,10 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
                         "Time",
                         "Select event time",
                         Icons.schedule,
-                        suffix: const Icon(Icons.arrow_drop_down, color: Color(0xFF4CAF50)),
+                        suffix: const Icon(
+                          Icons.arrow_drop_down,
+                          color: Color(0xFF4CAF50),
+                        ),
                       ),
                     ),
                   ),
@@ -358,9 +424,7 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
                     "Description",
                     "Describe the event goals and activities...",
                     Icons.description_outlined,
-                  ).copyWith(
-                    alignLabelWithHint: true,
-                  ),
+                  ).copyWith(alignLabelWithHint: true),
                 ),
               ],
             ),
@@ -374,16 +438,18 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
             decoration: BoxDecoration(
               color: ThemeHelper.getCardColor(context),
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                ThemeHelper.getCardShadow(context),
-              ],
+              boxShadow: [ThemeHelper.getCardShadow(context)],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   "Media",
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF4CAF50)),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF4CAF50),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 GestureDetector(
@@ -407,17 +473,28 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
                             color: const Color(0xFF4CAF50).withOpacity(0.1),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.cloud_upload_outlined, color: Color(0xFF4CAF50), size: 30),
+                          child: const Icon(
+                            Icons.cloud_upload_outlined,
+                            color: Color(0xFF4CAF50),
+                            size: 30,
+                          ),
                         ),
                         const SizedBox(height: 10),
                         Text(
                           "Tap to upload images",
-                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: ThemeHelper.getTextColor(context)),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: ThemeHelper.getTextColor(context),
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           "Share visuals of the cleanup area",
-                          style: TextStyle(fontSize: 12, color: ThemeHelper.getSecondaryTextColor(context)),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: ThemeHelper.getSecondaryTextColor(context),
+                          ),
                         ),
                       ],
                     ),
@@ -438,21 +515,34 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
               onPressed: _isLoading ? null : _postCampaign,
               icon: _isLoading
                   ? const SizedBox.shrink()
-                  : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                  : const Icon(
+                      Icons.send_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
               label: _isLoading
                   ? const SizedBox(
                       height: 22,
                       width: 22,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2.5,
+                      ),
                     )
                   : const Text(
                       "Post Event",
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.white,
+                      ),
                     ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF4CAF50),
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 elevation: 2,
               ),
             ),
@@ -466,7 +556,7 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
     final currentUserId = SupabaseService.currentUser?.id ?? '';
     final registrations = data['registrations'] as List? ?? [];
     final isRegistered = registrations.contains(currentUserId);
-    final registrationCount = data['registrationCount'] as int? ?? 0;
+    final registrationCount = data['registration_count'] as int? ?? 0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -488,7 +578,11 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
                   color: const Color(0xFF4CAF50).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.event, color: Color(0xFF4CAF50), size: 20),
+                child: const Icon(
+                  Icons.event,
+                  color: Color(0xFF4CAF50),
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -497,28 +591,40 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
                   children: [
                     Text(
                       data['location'] ?? 'Event Location',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: ThemeHelper.getTextColor(context)),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: ThemeHelper.getTextColor(context),
+                      ),
                     ),
                     Text(
                       '${data['date']} at ${data['time']}',
-                      style: TextStyle(color: ThemeHelper.getSecondaryTextColor(context), fontSize: 12),
+                      style: TextStyle(
+                        color: ThemeHelper.getSecondaryTextColor(context),
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          
-          if (data['description'] != null && data['description'].toString().isNotEmpty) ...[
+
+          if (data['description'] != null &&
+              data['description'].toString().isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(
               data['description'],
-              style: TextStyle(color: ThemeHelper.getTextColor(context), fontSize: 14),
+              style: TextStyle(
+                color: ThemeHelper.getTextColor(context),
+                fontSize: 14,
+              ),
             ),
           ],
 
           // Event Images
-          if (data['mediaUrls'] != null && (data['mediaUrls'] as List).isNotEmpty) ...[
+          if (data['mediaUrls'] != null &&
+              (data['mediaUrls'] as List).isNotEmpty) ...[
             const SizedBox(height: 12),
             SizedBox(
               height: 120,
@@ -541,7 +647,10 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
                             color: Colors.grey[300],
-                            child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                            child: const Icon(
+                              Icons.image_not_supported,
+                              color: Colors.grey,
+                            ),
                           );
                         },
                       ),
@@ -553,7 +662,7 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
           ],
 
           const SizedBox(height: 16),
-          
+
           // Registration Info and Button
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -572,10 +681,11 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
                 ],
               ),
               SizedBox(
-                width: 100,
+                width: isRegistered ? 124 : 108,
                 height: 36,
                 child: ElevatedButton.icon(
-                  onPressed: () => _showRegistrationDialog(eventId, isRegistered, data),
+                  onPressed: () =>
+                      _showRegistrationDialog(eventId, isRegistered, data),
                   icon: Icon(
                     isRegistered ? Icons.check_circle : Icons.person_add,
                     color: Colors.white,
@@ -586,9 +696,16 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
                     style: const TextStyle(color: Colors.white, fontSize: 12),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isRegistered ? Colors.green : const Color(0xFF4CAF50),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    backgroundColor: isRegistered
+                        ? Colors.green
+                        : const Color(0xFF4CAF50),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
               ),
@@ -599,7 +716,10 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
     );
   }
 
-  Future<void> _toggleRegistration(String eventId, bool isCurrentlyRegistered) async {
+  Future<void> _toggleRegistration(
+    String eventId,
+    bool isCurrentlyRegistered,
+  ) async {
     final currentUserId = SupabaseService.currentUser?.id;
     if (currentUserId == null) return;
 
@@ -615,39 +735,57 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
         await SupabaseService.registerForCampaign(eventId, {});
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('🎉 Successfully registered for event!')),
+            const SnackBar(
+              content: Text('🎉 Successfully registered for event!'),
+            ),
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Error: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('❌ Error: ${e.toString()}')));
       }
     }
   }
 
-  void _showRegistrationDialog(String eventId, bool isRegistered, Map<String, dynamic> eventData) {
+  void _showRegistrationDialog(
+    String eventId,
+    bool isRegistered,
+    Map<String, dynamic> eventData,
+  ) {
     if (isRegistered) {
       // Show unregister confirmation
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Unregister from Event'),
-          content: Text('Are you sure you want to unregister from "${eventData['location']}"?'),
+          content: Text(
+            'Are you sure you want to unregister from "${eventData['location']}"?',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Cancel'),
             ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _toggleRegistration(eventId, isRegistered);
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Unregister', style: TextStyle(color: Colors.white)),
+            SizedBox(
+              width: 116,
+              height: 40,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _toggleRegistration(eventId, isRegistered);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                ),
+                child: const Text(
+                  'Unregister',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
             ),
           ],
         ),
@@ -670,7 +808,7 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: Text('Register for ${eventData['location']}'),
+          title: Text('Register for ${eventData['location']}'),  
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -684,7 +822,7 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
                   ),
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Phone
                 TextField(
                   controller: phoneController,
@@ -695,7 +833,7 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
                   keyboardType: TextInputType.phone,
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Email
                 TextField(
                   controller: emailController,
@@ -706,7 +844,7 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
                   keyboardType: TextInputType.emailAddress,
                 ),
                 const SizedBox(height: 12),
-                
+
                 // T-Shirt Size
                 DropdownButtonFormField<String>(
                   value: selectedTShirtSize,
@@ -724,7 +862,7 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
                   },
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Experience Level
                 DropdownButtonFormField<String>(
                   value: selectedExperience,
@@ -732,9 +870,11 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
                     labelText: 'Cleanup Experience',
                     border: OutlineInputBorder(),
                   ),
-                  items: ['First time', 'Beginner', 'Experienced', 'Expert'].map((exp) {
-                    return DropdownMenuItem(value: exp, child: Text(exp));
-                  }).toList(),
+                  items: ['First time', 'Beginner', 'Experienced', 'Expert']
+                      .map((exp) {
+                        return DropdownMenuItem(value: exp, child: Text(exp));
+                      })
+                      .toList(),
                   onChanged: (value) {
                     setState(() {
                       selectedExperience = value!;
@@ -742,7 +882,7 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
                   },
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Transportation
                 CheckboxListTile(
                   title: const Text('I have my own transportation'),
@@ -767,9 +907,12 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
               height: 40,
               child: ElevatedButton(
                 onPressed: () {
-                  if (nameController.text.isEmpty || phoneController.text.isEmpty) {
+                  if (nameController.text.isEmpty ||
+                      phoneController.text.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Please fill required fields')),
+                      const SnackBar(
+                        content: Text('Please fill required fields'),
+                      ),
                     );
                     return;
                   }
@@ -785,13 +928,18 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4CAF50),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
                 child: const Text(
-                  'Register', 
+                  'Register',
                   style: TextStyle(
-                    color: Colors.white, 
+                    color: Colors.white,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -804,23 +952,28 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
     );
   }
 
-  Future<void> _registerWithDetails(String eventId, Map<String, dynamic> userDetails) async {
+  Future<void> _registerWithDetails(
+    String eventId,
+    Map<String, dynamic> userDetails,
+  ) async {
     final currentUserId = SupabaseService.currentUser?.id;
     if (currentUserId == null) return;
 
     try {
       await SupabaseService.registerForCampaign(eventId, userDetails);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('🎉 Successfully registered for event!')),
+          const SnackBar(
+            content: Text('🎉 Successfully registered for event!'),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Error: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('❌ Error: ${e.toString()}')));
       }
     }
   }

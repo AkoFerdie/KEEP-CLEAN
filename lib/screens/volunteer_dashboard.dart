@@ -785,7 +785,23 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
                   'tshirtSize': volunteerData['tshirtSize'] ?? 'M',
                   'experience': volunteerData['experience'] ?? 'First time',
                   'hasTransport': volunteerData['hasTransport'] ?? false,
-                  'eventLocation': campaign['location'] ?? 'Unknown Location',
+                  'eventLocation':
+                      volunteerData['eventLocation'] ??
+                      campaign['location'] ??
+                      'Unknown Location',
+                  'eventDate':
+                      volunteerData['eventDate'] ??
+                      campaign['date'] ??
+                      'Unknown Date',
+                  'eventTime':
+                      volunteerData['eventTime'] ??
+                      campaign['time'] ??
+                      'Unknown Time',
+                  'registeredAt':
+                      volunteerData['registeredAt'] ??
+                      DateTime.now().toIso8601String(),
+                  'registrationStatus':
+                      volunteerData['registrationStatus'] ?? 'registered',
                   'campaignsJoined': 0,
                   'hoursContributed': 0,
                 });
@@ -880,27 +896,79 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
                       volunteer['email'] ?? 'No email',
                       style: TextStyle(color: Colors.grey[600], fontSize: 12),
                     ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'Registered ${_getTimeAgo(volunteer['registeredAt'])}',
+                        style: const TextStyle(
+                          color: Colors.green,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          // Event location
-          Row(
-            children: [
-              Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  volunteer['eventLocation'] ?? 'Unknown Location',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+          // Event info
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue.withOpacity(0.2)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Event Details',
+                  style: TextStyle(
+                    color: Colors.grey[700],
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Icon(Icons.location_on, size: 14, color: Colors.blue),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        volunteer['eventLocation'] ?? 'Unknown Location',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.calendar_today, size: 14, color: Colors.blue),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${volunteer['eventDate'] ?? 'TBD'} at ${volunteer['eventTime'] ?? 'TBD'}',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 8),
-          // Phone
+          const SizedBox(height: 12),
+          // Contact info
           Row(
             children: [
               Icon(Icons.phone, size: 16, color: Colors.grey[600]),
@@ -913,7 +981,9 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
           ),
           const SizedBox(height: 8),
           // T-shirt size and Experience
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -926,7 +996,6 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
                   style: const TextStyle(color: Colors.blue, fontSize: 11),
                 ),
               ),
-              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -938,8 +1007,7 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
                   style: const TextStyle(color: Colors.orange, fontSize: 11),
                 ),
               ),
-              if (volunteer['hasTransport'] == true) ...[
-                const SizedBox(width: 8),
+              if (volunteer['hasTransport'] == true)
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -954,7 +1022,6 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
                     style: TextStyle(color: Colors.green, fontSize: 11),
                   ),
                 ),
-              ],
             ],
           ),
         ],

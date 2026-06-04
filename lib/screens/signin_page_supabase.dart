@@ -69,6 +69,27 @@ class _SignInPageSupabaseState extends State<SignInPageSupabase> {
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isSigningIn = true);
+
+    try {
+      final launched = await SupabaseService.signInWithGoogle();
+
+      if (!launched) {
+        _showSnackBar("Could not open Google sign in.");
+        return;
+      }
+
+      if (!kIsWeb) {
+        _showSnackBar("Complete Google sign in in your browser.");
+      }
+    } catch (e) {
+      _showSnackBar("Google sign in failed. Please try again.");
+    } finally {
+      if (mounted) setState(() => _isSigningIn = false);
+    }
+  }
+
   void _showSnackBar(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -204,6 +225,37 @@ class _SignInPageSupabaseState extends State<SignInPageSupabase> {
                                     color: Colors.white,
                                   ),
                                 ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _isSigningIn ? null : _signInWithGoogle,
+                          icon: Image.asset(
+                            'assets/google.png',
+                            width: 20,
+                            height: 20,
+                          ),
+                          label: const Text(
+                            "Continue with Google",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            side: const BorderSide(
+                              color: Color(0xFFDDEEDD),
+                              width: 1.5,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 25),

@@ -3,9 +3,12 @@ import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:url_launcher/url_launcher.dart';
 
 class SupabaseService {
   static SupabaseClient get client => Supabase.instance.client;
+  static const String _mobileAuthRedirectUrl =
+      'io.supabase.keepitclean://login-callback';
 
   // ============ AUTHENTICATION ============
 
@@ -46,6 +49,46 @@ class SupabaseService {
       email: email,
       password: password,
     );
+  }
+
+  /// Sign in with Google using Supabase OAuth.
+  static Future<bool> signInWithGoogle() async {
+    return await client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: kIsWeb ? Uri.base.origin : _mobileAuthRedirectUrl,
+      authScreenLaunchMode: kIsWeb
+          ? LaunchMode.platformDefault
+          : LaunchMode.externalApplication,
+    );
+  }
+
+  /// Ensure OAuth users have a matching row in the app's public users table.
+  static Future<void> ensureCurrentUserProfile() async {
+    final user = currentUser;
+    if (user == null) return;
+
+    final existingProfile = await getUserProfile(user.id);
+    if (existingProfile != null) return;
+
+    final metadata = user.userMetadata ?? {};
+    final email = user.email ?? '';
+    final username =
+        metadata['name'] as String? ??
+        metadata['full_name'] as String? ??
+        email.split('@').first;
+    final avatarUrl =
+        metadata['avatar_url'] as String? ??
+        metadata['picture'] as String? ??
+        '';
+
+    await client.from('users').insert({
+      'id': user.id,
+      'username': username,
+      'email': email,
+      'role': 'user',
+      'profile_image_url': avatarUrl,
+      'created_at': DateTime.now().toIso8601String(),
+    });
   }
 
   /// Sign in with username (convert to email first)
@@ -212,7 +255,17 @@ class SupabaseService {
     // Add user to registrations
     if (!registrations.contains(user.id)) {
       registrations.add(user.id);
-      registrationDetails[user.id] = userDetails;
+
+      // Add timestamp and event info to registration details
+      registrationDetails[user.id] = {
+        ...userDetails,
+        'registeredAt': DateTime.now().toIso8601String(),
+        'eventId': campaignId,
+        'eventLocation': campaign['location'] ?? 'Unknown Location',
+        'eventDate': campaign['date'] ?? 'Unknown Date',
+        'eventTime': campaign['time'] ?? 'Unknown Time',
+        'registrationStatus': 'registered',
+      };
 
       await client
           .from('campaigns')

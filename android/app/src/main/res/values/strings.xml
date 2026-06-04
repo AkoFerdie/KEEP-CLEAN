@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Keep It Clean</string>
-    <string name="default_web_client_id">988746847535-m42khivmobdm3ph4ar1dl6l759ie810u.apps.googleusercontent.com</string>
+    <string name="default_web_client_id">988746847535-qlu8tcs7ndpb30494g0hlsamr94l3vho.apps.googleusercontent.com</string>
     
     <!-- Facebook Configuration -->
     <!-- Replace YOUR_FACEBOOK_APP_ID with your actual Facebook App ID -->

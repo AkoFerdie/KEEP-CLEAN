@@ -30,6 +30,18 @@ class _SignUpPageState extends State<SignUpPage> {
 
   final Color _bgColor = const Color(0xFFF5F5F5);
 
+  Future<bool> _handleBackPressed() async {
+    final focusedNode = FocusManager.instance.primaryFocus;
+
+    if (focusedNode != null && focusedNode.context?.widget is EditableText) {
+      focusedNode.unfocus();
+      return false;
+    }
+
+    Navigator.pop(context);
+    return false;
+  }
+
   Future<void> _signUp() async {
     final username = _usernameController.text.trim();
     final email = _emailController.text.trim();
@@ -98,6 +110,15 @@ class _SignUpPageState extends State<SignUpPage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 
   Widget _buildTextField({
@@ -221,10 +242,7 @@ class _SignUpPageState extends State<SignUpPage> {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     return WillPopScope(
-      onWillPop: () async {
-        Navigator.pop(context);
-        return false;
-      },
+      onWillPop: _handleBackPressed,
       child: Scaffold(
         resizeToAvoidBottomInset: false,
         backgroundColor: _bgColor,
@@ -235,10 +253,15 @@ class _SignUpPageState extends State<SignUpPage> {
           surfaceTintColor: Colors.transparent,
           systemOverlayStyle: const SystemUiOverlayStyle(
             statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.dark,
+            systemNavigationBarColor: Color(0xFFF5F5F5),
+            systemNavigationBarIconBrightness: Brightness.dark,
           ),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF4CAF50)),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              _handleBackPressed();
+            },
           ),
         ),
         body: GestureDetector(
