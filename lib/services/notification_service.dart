@@ -1,9 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-<<<<<<< HEAD
 import 'package:shared_preferences/shared_preferences.dart';
-=======
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
 
 class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();

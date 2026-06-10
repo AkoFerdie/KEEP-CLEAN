@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-<<<<<<< HEAD
-import 'package:shared_preferences/shared_preferences.dart';
-=======
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
 import 'package:supabase_flutter/supabase_flutter.dart'; // Provides Supabase authentication and database functionality
 import 'supabase_config.dart';
 import 'screens/splash_screen.dart';
@@ -190,38 +186,16 @@ class _MyAppState extends State<MyApp> {
 ///
 /// If a valid user session exists, the HomePage is displayed.
 /// Otherwise, the SplashScreen is shown.
-<<<<<<< HEAD
-class AuthGate extends StatefulWidget {
-  const AuthGate({super.key});
-
-  @override
-  State<AuthGate> createState() => _AuthGateState();
-}
-
-class _AuthGateState extends State<AuthGate> {
-  @override
-  Widget build(BuildContext context) {
-    // Check for existing session immediately
-    final currentSession = Supabase.instance.client.auth.currentSession;
-    
-    if (currentSession != null) {
-      return const HomePage();
-    }
-
-=======
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
   @override
   Widget build(BuildContext context) {
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
     return StreamBuilder<AuthState>(
       // Listens for authentication state changes from Supabase.
       stream: Supabase.instance.client.auth.onAuthStateChange,
 
       builder: (context, snapshot) {
-<<<<<<< HEAD
-=======
         final currentSession = Supabase.instance.client.auth.currentSession;
 
         // Use the cached Supabase session first so OAuth returns land on HomePage
@@ -230,7 +204,6 @@ class AuthGate extends StatelessWidget {
           return const HomePage();
         }
 
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
         if (snapshot.hasData) {
           final session = snapshot.data!.session;
 

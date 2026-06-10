@@ -1,8 +1,5 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
-<<<<<<< HEAD
-=======
 import 'package:google_sign_in/google_sign_in.dart';
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/supabase_service.dart';
 
@@ -12,21 +9,6 @@ const String _googleWebClientId =
 // ── GOOGLE SIGN IN ──
 Future<void> signInWithGoogleViaSupabase() async {
   try {
-<<<<<<< HEAD
-    // Get current origin dynamically (works with any port)
-    final redirectUrl = kIsWeb ? Uri.base.origin : 'io.supabase.keepitclean://login-callback';
-    
-    print('🔗 OAuth redirect URL: $redirectUrl');
-    
-    // Force external browser to avoid Google's "disallowed_useragent" error
-    await Supabase.instance.client.auth.signInWithOAuth(
-      OAuthProvider.google,
-      redirectTo: redirectUrl,
-      authScreenLaunchMode: LaunchMode.externalApplication,
-    );
-    
-    print('✅ OAuth initiated successfully');
-=======
     if (kIsWeb) {
       await SupabaseService.signInWithGoogle();
       return;
@@ -50,7 +32,6 @@ Future<void> signInWithGoogleViaSupabase() async {
     );
 
     print('✅ Logged in as: ${googleUser.email}');
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
   } catch (e) {
     print('❌ Google Sign-In error: $e');
     rethrow;

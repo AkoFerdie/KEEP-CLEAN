@@ -46,12 +46,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (user == null) return;
 
     try {
-<<<<<<< HEAD
-      // Ensure profile exists and is up to date
-      await SupabaseService.ensureCurrentUserProfile();
-      
-=======
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
       final data = await SupabaseService.getUserProfile(user.id);
 
       if (data != null) {
@@ -223,11 +217,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                   vertical: 4,
                                 ),
                                 child: DropdownButtonFormField<String>(
-<<<<<<< HEAD
-                                  initialValue: _selectedRole,
-=======
                                   value: _selectedRole,
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
                                   isExpanded: true,
                                   dropdownColor: Colors.white,
                                   decoration: InputDecoration(
@@ -242,11 +232,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                       decoration: BoxDecoration(
                                         color: const Color(
                                           0xFF4CAF50,
-<<<<<<< HEAD
-                                        ).withValues(alpha: 0.1),
-=======
                                         ).withOpacity(0.1),
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: const Icon(
@@ -313,11 +299,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                       decoration: BoxDecoration(
                                         color: const Color(
                                           0xFF4CAF50,
-<<<<<<< HEAD
-                                        ).withValues(alpha: 0.1),
-=======
                                         ).withOpacity(0.1),
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: const Icon(
@@ -404,11 +386,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-<<<<<<< HEAD
-            color: Colors.green.withValues(alpha: 0.07),
-=======
             color: Colors.green.withOpacity(0.07),
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),

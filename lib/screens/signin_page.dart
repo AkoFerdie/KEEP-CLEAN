@@ -134,23 +134,6 @@ class _SignInPageState extends State<SignInPage> {
     try {
       await signInWithGoogleViaSupabase();
 
-<<<<<<< HEAD
-      // Wait briefly for Supabase to process the authentication
-      await Future.delayed(const Duration(milliseconds: 800));
-
-      // Check if authentication was successful
-      if (mounted && SupabaseService.currentUser != null) {
-        await _goHomeAfterSignIn();
-      }
-    } catch (e) {
-      if (mounted) {
-        final errorMsg = e.toString();
-        if (!errorMsg.contains('popup_closed_by_user') && 
-            !errorMsg.contains('User cancelled') &&
-            !errorMsg.contains('sign-in cancelled')) {
-          _showSnackBar('Google sign in failed. Please try again.', isError: true);
-        }
-=======
       if (!kIsWeb && mounted && SupabaseService.currentUser != null) {
         Navigator.pushReplacement(
           context,
@@ -160,7 +143,6 @@ class _SignInPageState extends State<SignInPage> {
     } catch (e) {
       if (mounted && !e.toString().contains('popup_closed_by_user')) {
         _showSnackBar('Google sign in failed', isError: true);
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
       }
     } finally {
       if (mounted) setState(() => _isSigningInWithGoogle = false);

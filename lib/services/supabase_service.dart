@@ -74,26 +74,6 @@ class SupabaseService {
       } else if (existingRole.toLowerCase() == 'user') {
         await updateUserProfile(user.id, {'role': 'User'});
       }
-<<<<<<< HEAD
-      
-      // Update email and username if missing
-      final email = user.email ?? existingProfile['email'] ?? '';
-      final metadata = user.userMetadata ?? {};
-      final username = existingProfile['username']?.toString().trim();
-      
-      if (username == null || username.isEmpty || email.isEmpty) {
-        final extractedUsername =
-            metadata['name'] as String? ??
-            metadata['full_name'] as String? ??
-            email.split('@').first;
-        
-        await updateUserProfile(user.id, {
-          'username': username?.isEmpty ?? true ? extractedUsername : username,
-          'email': email,
-        });
-      }
-=======
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
       return;
     }
 

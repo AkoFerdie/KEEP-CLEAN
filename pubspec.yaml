@@ -45,11 +45,7 @@ dependencies:
   http: ^1.2.0
   shared_preferences: ^2.3.2
   flutter_dotenv: ^6.0.1
-<<<<<<< HEAD
-  flutter_local_notifications: ^22.0.0
-=======
   flutter_local_notifications: ^21.0.0
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
   cupertino_icons: ^1.0.9
  
 

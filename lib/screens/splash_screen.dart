@@ -41,21 +41,6 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
 
     _fadeController = AnimationController(
-<<<<<<< HEAD
-      duration: const Duration(milliseconds: 500),
-      vsync: this,
-    );
-    _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 450),
-      vsync: this,
-    );
-    _slideController = AnimationController(
-      duration: const Duration(milliseconds: 400),
-      vsync: this,
-    );
-    _rotateController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-=======
       duration: const Duration(milliseconds: 700),
       vsync: this,
     );
@@ -69,7 +54,6 @@ class _SplashScreenState extends State<SplashScreen>
     );
     _rotateController = AnimationController(
       duration: const Duration(milliseconds: 1200),
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
       vsync: this,
     );
 
@@ -111,23 +95,14 @@ class _SplashScreenState extends State<SplashScreen>
       }
     });
 
-<<<<<<< HEAD
-    // Run init + asset caching with a 1 second hard timeout
-=======
     // Run init + asset caching with a 2 second hard timeout
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
     await Future.wait([
       _initializeApp(),
       precacheImage(_logoImage, context).catchError((_) {}),
       precacheImage(_gettingStartedImage, context).catchError((_) {}),
     ]).timeout(
-<<<<<<< HEAD
-      const Duration(milliseconds: 600),
-      onTimeout: () => [], // 👈 move on after 0.6s no matter what
-=======
       const Duration(seconds: 2),
       onTimeout: () => [], // 👈 move on after 2s no matter what
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
     );
 
     if (!mounted || _disposed || _hasNavigated) return;
@@ -139,46 +114,22 @@ class _SplashScreenState extends State<SplashScreen>
     final user = SupabaseService.currentUser;
 
     if (session != null || user != null) {
-<<<<<<< HEAD
-      await _navigateToHomePage();
-=======
       _navigateToHomePage();
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
       return;
     }
 
     // Check for OAuth redirect in URL
     final uri = Uri.base;
     final isOAuthRedirect = uri.fragment.contains('access_token') ||
-<<<<<<< HEAD
-        uri.queryParameters.containsKey('code') ||
-        uri.fragment.contains('error');
-
-    if (isOAuthRedirect) {
-      // Check if there's an error in the URL
-      if (uri.fragment.contains('error')) {
-        debugPrint('OAuth error detected, navigating to getting started');
-        _navigateToGettingStarted();
-        return;
-      }
-
-      // Wait briefly for session to be established
-      await Future.delayed(const Duration(milliseconds: 300));
-=======
         uri.queryParameters.containsKey('code');
 
     if (isOAuthRedirect) {
       await Future.delayed(const Duration(milliseconds: 1500));
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
       if (!mounted || _disposed || _hasNavigated) return;
 
       final sessionAfterWait = Supabase.instance.client.auth.currentSession;
       if (sessionAfterWait != null) {
-<<<<<<< HEAD
-        await _navigateToHomePage();
-=======
         _navigateToHomePage();
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
         return;
       }
     }
@@ -195,24 +146,9 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
-<<<<<<< HEAD
-  Future<void> _navigateToHomePage() async {
-    if (!mounted || _disposed || _hasNavigated) return;
-    _hasNavigated = true;
-
-    // Ensure user profile exists before navigating
-    try {
-      await SupabaseService.ensureCurrentUserProfile();
-    } catch (e) {
-      debugPrint('Profile creation failed: $e');
-    }
-
-    if (!mounted) return;
-=======
   void _navigateToHomePage() {
     if (!mounted || _disposed || _hasNavigated) return;
     _hasNavigated = true;
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
 
     Navigator.pushReplacement(
       context,
@@ -221,10 +157,6 @@ class _SplashScreenState extends State<SplashScreen>
             const HomePage(),
         transitionDuration: const Duration(milliseconds: 400),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-<<<<<<< HEAD
-          return FadeTransition(
-            opacity: animation,
-=======
           return SlideTransition(
             position: Tween<Offset>(
               begin: const Offset(1.0, 0.0),
@@ -232,7 +164,6 @@ class _SplashScreenState extends State<SplashScreen>
             ).animate(
               CurvedAnimation(parent: animation, curve: Curves.easeInOut),
             ),
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
             child: child,
           );
         },
@@ -241,15 +172,6 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _startAnimations() async {
-<<<<<<< HEAD
-    await Future.delayed(const Duration(milliseconds: 50));
-    if (_disposed) return;
-    _fadeController.forward();
-    await Future.delayed(const Duration(milliseconds: 100));
-    if (_disposed) return;
-    _scaleController.forward();
-    await Future.delayed(const Duration(milliseconds: 80));
-=======
     await Future.delayed(const Duration(milliseconds: 100));
     if (_disposed) return;
     _fadeController.forward();
@@ -257,7 +179,6 @@ class _SplashScreenState extends State<SplashScreen>
     if (_disposed) return;
     _scaleController.forward();
     await Future.delayed(const Duration(milliseconds: 100));
->>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
     if (_disposed) return;
     _slideController.forward();
     if (_disposed) return;
