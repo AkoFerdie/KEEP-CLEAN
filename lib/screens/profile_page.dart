@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import 'notifications_page.dart';
 import 'settings_page.dart';
 import 'dashboard_screen.dart';
 import 'hysacam_dashboard.dart';
@@ -253,6 +254,7 @@ class _ProfilePageState extends State<ProfilePage> {
       profileImageProvider = FileImage(_profileImage!);
     } else if (_currentProfileImageUrl != null &&
         _currentProfileImageUrl!.isNotEmpty) {
+      // Handle Google profile images with error fallback
       profileImageProvider = NetworkImage(_currentProfileImageUrl!);
     } else {
       profileImageProvider = const AssetImage("assets/front_logo.png");
@@ -276,8 +278,37 @@ class _ProfilePageState extends State<ProfilePage> {
                   onTap: _openFullScreenImage,
                   child: CircleAvatar(
                     radius: MediaQuery.of(context).size.width * 0.13,
-                    backgroundImage: profileImageProvider,
                     backgroundColor: Colors.grey.shade200,
+                    child: _webImage != null || _profileImage != null || 
+                           (_currentProfileImageUrl != null && _currentProfileImageUrl!.isNotEmpty)
+                        ? ClipOval(
+                            child: Image(
+                              image: profileImageProvider,
+                              fit: BoxFit.cover,
+                              width: MediaQuery.of(context).size.width * 0.26,
+                              height: MediaQuery.of(context).size.width * 0.26,
+                              errorBuilder: (context, error, stackTrace) {
+                                // Fallback to logo on error (e.g., 429 rate limit)
+                                return Image.asset(
+                                  'assets/front_logo.png',
+                                  fit: BoxFit.cover,
+                                );
+                              },
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Center(
+                                  child: CircularProgressIndicator(
+                                    value: loadingProgress.expectedTotalBytes != null
+                                        ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                        : null,
+                                    color: const Color(0xFF4CAF50),
+                                    strokeWidth: 2,
+                                  ),
+                                );
+                              },
+                            ),
+                          )
+                        : Image.asset('assets/front_logo.png', fit: BoxFit.cover),
                   ),
                 ),
                 GestureDetector(
@@ -389,7 +420,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   const SizedBox(height: 8),
                   _buildMenuCard([
-                    _buildMenuItem(Icons.notifications_outlined, "Notifications", "Manage alerts", () {}),
+                    _buildMenuItem(Icons.notifications_outlined, "Notifications", "Manage alerts", () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsPage()));
+                    }),
                     _buildMenuItem(Icons.settings_outlined, "Settings", "App preferences", () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage()));
                     }),
@@ -455,37 +488,33 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildStatCard(String label, String value, IconData icon) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: ThemeHelper.getCardColor(context),
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            ThemeHelper.getCardShadow(context),
-          ],
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: const Color(0xFF4CAF50), size: 22),
-            const SizedBox(height: 6),
-            Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: ThemeHelper.getTextColor(context))),
-            const SizedBox(height: 2),
-            Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[700])),
-          ],
+      child: Material(
+        color: ThemeHelper.getCardColor(context),
+        borderRadius: BorderRadius.circular(14),
+        shadowColor: Colors.grey.withValues(alpha: 0.15),
+        elevation: 2,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            children: [
+              Icon(icon, color: const Color(0xFF4CAF50), size: 22),
+              const SizedBox(height: 6),
+              Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: ThemeHelper.getTextColor(context))),
+              const SizedBox(height: 2),
+              Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[700])),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildMenuCard(List<Widget> items) {
-    return Container(
-      decoration: BoxDecoration(
-        color: ThemeHelper.getCardColor(context),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          ThemeHelper.getCardShadow(context),
-        ],
-      ),
+    return Material(
+      color: ThemeHelper.getCardColor(context),
+      borderRadius: BorderRadius.circular(16),
+      shadowColor: Colors.grey.withValues(alpha: 0.15),
+      elevation: 2,
       child: Column(children: items),
     );
   }

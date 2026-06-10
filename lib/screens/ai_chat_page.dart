@@ -188,8 +188,8 @@ class _AIChatPageState extends State<AIChatPage> with TickerProviderStateMixin {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF4CAF50).withOpacity(0.1),
-            border: Border(bottom: BorderSide(color: Colors.grey.withOpacity(0.2))),
+            color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
+            border: Border(bottom: BorderSide(color: Colors.grey.withValues(alpha: 0.2))),
           ),
           child: Row(
             children: [
@@ -258,7 +258,7 @@ class _AIChatPageState extends State<AIChatPage> with TickerProviderStateMixin {
           ),
           decoration: BoxDecoration(
             color: Colors.white,
-            border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2))),
+            border: Border(top: BorderSide(color: Colors.grey.withValues(alpha: 0.2))),
           ),
           child: Row(
             children: [

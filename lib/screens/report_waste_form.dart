@@ -192,7 +192,7 @@ class _ReportWasteFormState extends State<ReportWasteForm> {
 
             // Location Dropdown
             DropdownButtonFormField<String>(
-              value: _selectedLocation,
+              initialValue: _selectedLocation,
               isExpanded: true,
               dropdownColor: ThemeHelper.getCardColor(context),
               validator: (v) => v == null ? "Location is required" : null,
@@ -363,7 +363,7 @@ class _ReportWasteFormState extends State<ReportWasteForm> {
         margin: const EdgeInsets.all(10),
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFF4CAF50).withOpacity(0.1),
+          color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, color: const Color(0xFF4CAF50), size: 18),

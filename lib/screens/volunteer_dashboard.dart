@@ -28,9 +28,9 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
   final TextEditingController _descriptionController = TextEditingController();
 
   final ImagePicker _picker = ImagePicker();
-  List<File> _selectedFiles = [];
-  List<Uint8List> _webImages = [];
-  List<String> _fileNames = [];
+  final List<File> _selectedFiles = [];
+  final List<Uint8List> _webImages = [];
+  final List<String> _fileNames = [];
   bool _isLoading = false;
   bool _showCreateForm = false;
 
@@ -148,8 +148,9 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
 
         if (snapshot.hasData) {
           for (var data in snapshot.data!) {
-            if (data['status'] == 'active' || data['status'] == 'pending')
+            if (data['status'] == 'active' || data['status'] == 'pending') {
               activeEvents++;
+            }
             totalLikes += (data['likes'] as int?) ?? 0;
             totalComments += ((data['comments'] as List?)?.length ?? 0);
           }
@@ -206,7 +207,7 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -222,7 +223,7 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Icon(Icons.trending_up, color: color, size: 16),
@@ -292,7 +293,7 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -304,7 +305,7 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: const Color(0xFF4CAF50).withOpacity(0.1),
+              color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.event, color: Color(0xFF4CAF50)),
@@ -335,7 +336,7 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.1),
+              color: Colors.blue.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -374,7 +375,7 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.withOpacity(0.1)),
+                  border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
                 ),
                 child: const Center(
                   child: Text(
@@ -398,7 +399,7 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.withOpacity(0.1)),
+                    border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
                   ),
                   child: Row(
                     children: [
@@ -441,7 +442,7 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
                               (isCompleted
                                       ? Colors.blue
                                       : const Color(0xFF4CAF50))
-                                  .withOpacity(0.1),
+                                  .withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -554,7 +555,7 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -710,7 +711,7 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -859,7 +860,7 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -903,7 +904,7 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
+                        color: Colors.green.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -925,9 +926,9 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.05),
+              color: Colors.blue.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue.withOpacity(0.2)),
+              border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -988,7 +989,7 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
+                  color: Colors.blue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -999,7 +1000,7 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -1014,7 +1015,7 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color: Colors.green.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: const Text(
@@ -1141,7 +1142,7 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
         margin: const EdgeInsets.all(8),
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFF4CAF50).withOpacity(0.1),
+          color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, color: const Color(0xFF4CAF50), size: 18),
@@ -1154,7 +1155,7 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey.withOpacity(0.3)),
+        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -1195,8 +1196,8 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
       return;
     }
 
-    final List<XFile>? files = await _picker.pickMultiImage();
-    if (files == null || files.isEmpty) return;
+    final List<XFile> files = await _picker.pickMultiImage();
+    if (files.isEmpty) return;
 
     if (kIsWeb) {
       for (var file in files) {
@@ -1238,9 +1239,9 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
           width: double.infinity,
           height: 160,
           decoration: BoxDecoration(
-            color: const Color(0xFF4CAF50).withOpacity(0.1),
+            color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF4CAF50).withOpacity(0.3)),
+            border: Border.all(color: const Color(0xFF4CAF50).withValues(alpha: 0.3)),
           ),
           child: const Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1285,10 +1286,10 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
             onTap: _pickMedia,
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF4CAF50).withOpacity(0.08),
+                color: const Color(0xFF4CAF50).withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: const Color(0xFF4CAF50).withOpacity(0.4),
+                  color: const Color(0xFF4CAF50).withValues(alpha: 0.4),
                   style: BorderStyle.solid,
                 ),
               ),
@@ -1423,11 +1424,13 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
       // Clear form and reset state
       _clearForm();
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('❌ Error: ${e.toString()}')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('❌ Error: ${e.toString()}')));
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -1473,7 +1476,7 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: Colors.grey.withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -1559,7 +1562,7 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: Colors.grey.withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),

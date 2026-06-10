@@ -47,7 +47,7 @@ class DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF4CAF50),
         elevation: 4,
-        shadowColor: Colors.green.withOpacity(0.4),
+        shadowColor: Colors.green.withValues(alpha: 0.4),
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),

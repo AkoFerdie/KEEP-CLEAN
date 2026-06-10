@@ -74,6 +74,7 @@ class _SignUpPageState extends State<SignUpPage> {
         role: role,
       );
 
+      if (!mounted) return;
       _showSnackBar("Verification email sent 📧 and user data saved!");
 
       Navigator.pushReplacement(
@@ -138,7 +139,7 @@ class _SignUpPageState extends State<SignUpPage> {
           margin: const EdgeInsets.all(10),
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFF4CAF50).withOpacity(0.1),
+            color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, color: const Color(0xFF4CAF50), size: 18),
@@ -169,7 +170,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
   Widget _buildDropdown() {
     return DropdownButtonFormField<String>(
-      value: _selectedRole,
+      initialValue: _selectedRole,
       isExpanded: true,
       dropdownColor: Colors.white,
       items: _roles
@@ -186,7 +187,7 @@ class _SignUpPageState extends State<SignUpPage> {
           margin: const EdgeInsets.all(10),
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFF4CAF50).withOpacity(0.1),
+            color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: const Icon(Icons.account_circle, color: Color(0xFF4CAF50), size: 18),

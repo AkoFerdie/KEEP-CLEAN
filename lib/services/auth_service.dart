@@ -1,8 +1,10 @@
+import 'package:gotrue/src/types/user.dart';
+
 import '../services/supabase_service.dart';
 import 'package:flutter/foundation.dart';
 
 class AuthService {
-  static get currentUser => SupabaseService.currentUser;
+  static User? get currentUser => SupabaseService.currentUser;
   
   static Future<void> signOut() async {
     await SupabaseService.signOut();

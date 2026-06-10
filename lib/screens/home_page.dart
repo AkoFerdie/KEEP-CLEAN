@@ -45,10 +45,10 @@ class _HomePageState extends State<HomePage> {
     user = SupabaseService.currentUser;
     _loadLastSeenCount();
     NotificationService.init();
-    int _previousPatrolCount = -1;
+    int previousPatrolCount = -1;
     SupabaseService.getPatrolScheduleStream().listen((data) {
       if (mounted) {
-        if (_previousPatrolCount >= 0 && data.length > _previousPatrolCount) {
+        if (previousPatrolCount >= 0 && data.length > previousPatrolCount) {
           final newest = data.first;
           NotificationService.showPatrolNotification(
             location: newest['location'] ?? 'Unknown',
@@ -56,7 +56,7 @@ class _HomePageState extends State<HomePage> {
             time: newest['time'] ?? '',
           );
         }
-        _previousPatrolCount = data.length;
+        previousPatrolCount = data.length;
         setState(() => _patrolCount = data.length);
       }
     });
@@ -124,7 +124,7 @@ class _HomePageState extends State<HomePage> {
         appBar: AppBar(
           backgroundColor: const Color(0xFF4CAF50),
           elevation: 4,
-          shadowColor: Colors.green.withOpacity(0.4),
+          shadowColor: Colors.green.withValues(alpha: 0.4),
           automaticallyImplyLeading: false,
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
@@ -509,7 +509,7 @@ class _HomePageState extends State<HomePage> {
                                 decoration: BoxDecoration(
                                   color: const Color(
                                     0xFF4CAF50,
-                                  ).withOpacity(0.12),
+                                  ).withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: const Icon(
@@ -696,6 +696,25 @@ class _HomePageState extends State<HomePage> {
 class _HomeContent extends StatelessWidget {
   const _HomeContent();
 
+  String _extractFirstNameFromFullName(String fullName) {
+    final clean = fullName.trim();
+    if (clean.isEmpty) return 'there';
+    return clean.split(' ').first;
+  }
+
+  String _extractFirstNameFromEmail(String email) {
+    final localPart = email.split('@').first;
+    if (localPart.isEmpty) return 'there';
+    final parts = localPart.split(RegExp(r'[._\-]'));
+    final rawName = parts.firstWhere(
+      (part) => part.isNotEmpty,
+      orElse: () => localPart,
+    );
+    return rawName.isEmpty
+        ? 'there'
+        : rawName[0].toUpperCase() + rawName.substring(1);
+  }
+
   final List<String> _ecoTips = const [
     "♻️ Rinse containers before recycling to avoid contamination.",
     "🌱 Composting food scraps reduces landfill waste by up to 30%.",
@@ -729,8 +748,21 @@ class _HomeContent extends StatelessWidget {
               builder: (context, snapshot) {
                 String name = 'there';
                 if (snapshot.hasData && snapshot.data != null) {
-                  name = snapshot.data!['username'] ?? 'there';
+                  final username = snapshot.data!['username'] as String?;
+                  if (username != null && username.trim().isNotEmpty) {
+                    name = username.trim();
+                  }
                 }
+
+                if (name == 'there') {
+                  final metadataName = user?.userMetadata?['name']?.toString();
+                  if (metadataName != null && metadataName.trim().isNotEmpty) {
+                    name = _extractFirstNameFromFullName(metadataName);
+                  } else if (user?.email != null) {
+                    name = _extractFirstNameFromEmail(user!.email!);
+                  }
+                }
+
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1128,9 +1160,9 @@ class _HomeContent extends StatelessWidget {
         child: Container(
           padding: EdgeInsets.symmetric(vertical: w * 0.035),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: color.withOpacity(0.2)),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
           ),
           child: Column(
             children: [
@@ -1185,7 +1217,7 @@ class _CampaignCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.green.withOpacity(0.07),
+            color: Colors.green.withValues(alpha: 0.07),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -1196,7 +1228,7 @@ class _CampaignCard extends StatelessWidget {
           Container(
             padding: EdgeInsets.all(w * 0.03),
             decoration: BoxDecoration(
-              color: const Color(0xFF4CAF50).withOpacity(0.1),
+              color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -1243,7 +1275,7 @@ class _CampaignCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.12),
+              color: statusColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -1419,7 +1451,7 @@ class _GuideCard extends StatelessWidget {
                                 border: Border.all(
                                   color: const Color(
                                     0xFF4CAF50,
-                                  ).withOpacity(0.2),
+                                  ).withValues(alpha: 0.2),
                                 ),
                               ),
                               child: Text(
@@ -1453,7 +1485,7 @@ class _GuideCard extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(10),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.green.withOpacity(0.08),
+                                      color: Colors.green.withValues(alpha: 0.08),
                                       blurRadius: 6,
                                       offset: const Offset(0, 2),
                                     ),

@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'forgot_password_page.dart';
+import 'privacy_page.dart';
+import 'two_factor_auth_page.dart';
+import 'terms_of_service_page.dart';
+import 'privacy_policy_page.dart';
+import 'help_support_page.dart';
 import '../utils/theme_helper.dart';
 import '../main.dart';
 import '../services/supabase_service.dart';
+import '../services/notification_service.dart';
+
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -14,6 +22,32 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   bool _notificationsEnabled = true;
   bool _locationEnabled = true;
+
+  static const _notifKey = 'notifications_enabled';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotificationPref();
+  }
+
+  Future<void> _loadNotificationPref() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _notificationsEnabled = prefs.getBool(_notifKey) ?? true;
+      });
+    }
+  }
+
+  Future<void> _toggleNotifications(bool val) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_notifKey, val);
+    if (val) {
+      await NotificationService.init();
+    }
+    if (mounted) setState(() => _notificationsEnabled = val);
+  }
 
   @override
   void dispose() {
@@ -52,7 +86,8 @@ class _SettingsPageState extends State<SettingsPage> {
               "Notifications",
               "Receive campaign & report alerts",
               _notificationsEnabled,
-              (val) => setState(() => _notificationsEnabled = val),
+              _toggleNotifications,
+              iconColor: Colors.orange,
             ),
             Divider(height: 1, indent: 56, color: ThemeHelper.getBorderColor(context)),
             _buildToggleTile(
@@ -65,6 +100,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     val ? ThemeMode.dark : ThemeMode.light;
                 setState(() {});
               },
+              iconColor: Colors.deepPurple,
             ),
             Divider(height: 1, indent: 56, color: ThemeHelper.getBorderColor(context)),
             _buildToggleTile(
@@ -73,11 +109,12 @@ class _SettingsPageState extends State<SettingsPage> {
               "Allow app to access your location",
               _locationEnabled,
               (val) => setState(() => _locationEnabled = val),
+              iconColor: Colors.blue,
             ),
             Divider(height: 1, indent: 56, color: ThemeHelper.getBorderColor(context)),
             _buildArrowTile(Icons.language_outlined, "Language", "English", () {
               _showSnack("Language settings coming soon!");
-            }),
+            }, iconColor: const Color(0xFF4CAF50)),
           ]),
 
           const SizedBox(height: 20),
@@ -87,15 +124,15 @@ class _SettingsPageState extends State<SettingsPage> {
           _buildCard([
             _buildArrowTile(Icons.lock_outline, "Change Password", "Update your password", () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgotPasswordPage()));
-            }),
+            }, iconColor: Colors.red),
             Divider(height: 1, indent: 56, color: ThemeHelper.getBorderColor(context)),
             _buildArrowTile(Icons.privacy_tip_outlined, "Privacy", "Manage your data & visibility", () {
-              _showSnack("Privacy settings coming soon!");
-            }),
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPage()));
+            }, iconColor: Colors.blue),
             Divider(height: 1, indent: 56, color: ThemeHelper.getBorderColor(context)),
             _buildArrowTile(Icons.security_outlined, "Two-Factor Authentication", "Add extra security", () {
-              _showSnack("2FA coming soon!");
-            }),
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const TwoFactorAuthPage()));
+            }, iconColor: Colors.orange),
           ]),
 
           const SizedBox(height: 20),
@@ -104,22 +141,22 @@ class _SettingsPageState extends State<SettingsPage> {
           _sectionLabel("About"),
           _buildCard([
             _buildArrowTile(Icons.description_outlined, "Terms of Service", "Read our terms", () {
-              _showSnack("Terms of Service coming soon!");
-            }),
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const TermsOfServicePage()));
+            }, iconColor: Colors.blueGrey),
             Divider(height: 1, indent: 56, color: ThemeHelper.getBorderColor(context)),
             _buildArrowTile(Icons.policy_outlined, "Privacy Policy", "How we use your data", () {
-              _showSnack("Privacy Policy coming soon!");
-            }),
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyPage()));
+            }, iconColor: Colors.indigo),
             Divider(height: 1, indent: 56, color: ThemeHelper.getBorderColor(context)),
             _buildArrowTile(Icons.help_outline_rounded, "Help & Support", "Get assistance", () {
-              _showSnack("Help & Support coming soon!");
-            }),
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpSupportPage()));
+            }, iconColor: Colors.teal),
             Divider(height: 1, indent: 56, color: ThemeHelper.getBorderColor(context)),
             _buildArrowTile(Icons.star_outline_rounded, "Rate the App", "Share your feedback", () {
               _showRatingDialog();
-            }),
+            }, iconColor: Colors.amber),
             Divider(height: 1, indent: 56, color: ThemeHelper.getBorderColor(context)),
-            _buildArrowTile(Icons.info_outline_rounded, "App Version", "v1.0.0", null),
+            _buildArrowTile(Icons.info_outline_rounded, "App Version", "v1.0.0", null, iconColor: Colors.grey),
           ]),
 
           const SizedBox(height: 30),
@@ -143,27 +180,25 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildCard(List<Widget> children) {
-    return Container(
-      decoration: BoxDecoration(
-        color: ThemeHelper.getCardColor(context),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          ThemeHelper.getCardShadow(context),
-        ],
-      ),
+    return Material(
+      color: ThemeHelper.getCardColor(context),
+      borderRadius: BorderRadius.circular(16),
+      shadowColor: Colors.grey.withValues(alpha: 0.15),
+      elevation: 2,
       child: Column(children: children),
     );
   }
 
-  Widget _buildToggleTile(IconData icon, String title, String subtitle, bool value, ValueChanged<bool> onChanged) {
+  Widget _buildToggleTile(IconData icon, String title, String subtitle, bool value, ValueChanged<bool> onChanged, {Color? iconColor}) {
+    final color = iconColor ?? const Color(0xFF4CAF50);
     return ListTile(
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon, color: const Color(0xFF4CAF50), size: 20),
+        child: Icon(icon, color: color, size: 20),
       ),
       title: Text(
         title, 
@@ -183,21 +218,22 @@ class _SettingsPageState extends State<SettingsPage> {
       trailing: Switch(
         value: value,
         onChanged: onChanged,
-        activeColor: const Color(0xFF4CAF50),
+        activeThumbColor: color,
       ),
     );
   }
 
-  Widget _buildArrowTile(IconData icon, String title, String subtitle, VoidCallback? onTap) {
+  Widget _buildArrowTile(IconData icon, String title, String subtitle, VoidCallback? onTap, {Color? iconColor}) {
+    final color = iconColor ?? const Color(0xFF4CAF50);
     return ListTile(
       onTap: onTap,
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon, color: const Color(0xFF4CAF50), size: 20),
+        child: Icon(icon, color: color, size: 20),
       ),
       title: Text(
         title, 
@@ -468,6 +504,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _showSnack(String msg) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 }

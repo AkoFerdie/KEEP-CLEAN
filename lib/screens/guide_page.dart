@@ -94,7 +94,7 @@ class _GuidePageState extends State<GuidePage> {
           children: [
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
               child: Icon(icon, color: color, size: 24),
             ),
             const SizedBox(height: 8),
@@ -135,14 +135,14 @@ class _GuidePageState extends State<GuidePage> {
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFF4CAF50).withOpacity(0.1),
+            color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(item.icon, color: const Color(0xFF4CAF50), size: 24),
         ),
         title: Text(item.title, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: ThemeHelper.getTextColor(context))),
         subtitle: Text(item.subtitle, style: TextStyle(fontSize: 12, color: ThemeHelper.getSecondaryTextColor(context))),
-        trailing: Icon(Icons.arrow_forward_ios, size: 16, color: ThemeHelper.getSecondaryTextColor(context).withOpacity(0.7)),
+        trailing: Icon(Icons.arrow_forward_ios, size: 16, color: ThemeHelper.getSecondaryTextColor(context).withValues(alpha: 0.7)),
         onTap: () => _showGuideDetail(item.title, item.content),
       ),
     );

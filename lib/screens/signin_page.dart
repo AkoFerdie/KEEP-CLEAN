@@ -1,11 +1,11 @@
 import 'dart:async';
-
+import '../google_auth.dart'; // ✅ covers both Google and Facebook now
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../google_auth.dart';
+
 import '../services/supabase_service.dart';
 import 'forgot_password_page.dart';
 import 'home_page.dart';
@@ -32,16 +32,13 @@ class _SignInPageState extends State<SignInPage> {
 
   final Color _bgColor = const Color(0xFFF2F2F2);
 
+  // 👇 Email format validator
+  final _emailRegex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w{2,}$');
+
   @override
   void initState() {
     super.initState();
-    _authSubscription = SupabaseService.client.auth.onAuthStateChange.listen((
-      data,
-    ) async {
-      if (data.event == AuthChangeEvent.signedIn && mounted) {
-        await _goHomeAfterSignIn();
-      }
-    });
+    // Remove auth state listener to prevent navigation conflicts
   }
 
   Future<bool> _handleBackPressed() async {
@@ -64,7 +61,7 @@ class _SignInPageState extends State<SignInPage> {
       await SupabaseService.ensureCurrentUserProfile();
     } catch (e) {
       if (mounted) {
-        _showSnackBar('Signed in, but profile setup failed');
+        _showSnackBar('Signed in, but profile setup failed', isError: true);
       }
       _hasNavigatedHome = false;
       return;
@@ -83,7 +80,19 @@ class _SignInPageState extends State<SignInPage> {
     final password = _passwordController.text.trim();
 
     if (input.isEmpty || password.isEmpty) {
-      _showSnackBar('Please enter your email/username and password.');
+      _showSnackBar(
+        'Please enter your email/username and password.',
+        isError: true,
+      );
+      return;
+    }
+
+    // 👇 If input looks like an email, validate the format
+    if (input.contains('@') && !_emailRegex.hasMatch(input)) {
+      _showSnackBar(
+        'Please enter a valid email address (e.g. name@gmail.com).',
+        isError: true,
+      );
       return;
     }
 
@@ -99,7 +108,7 @@ class _SignInPageState extends State<SignInPage> {
         );
       }
 
-      _showSnackBar('Signed in successfully!');
+      _showSnackBar('Signed in successfully!', isError: false);
       await _goHomeAfterSignIn();
     } catch (e) {
       String message = 'Sign in failed.';
@@ -112,7 +121,7 @@ class _SignInPageState extends State<SignInPage> {
         message = 'Too many attempts. Please try again later.';
       }
 
-      _showSnackBar(message);
+      _showSnackBar(message, isError: true);
     } finally {
       if (mounted) setState(() => _isSigningIn = false);
     }
@@ -124,9 +133,34 @@ class _SignInPageState extends State<SignInPage> {
 
     try {
       await signInWithGoogleViaSupabase();
+
+<<<<<<< HEAD
+      // Wait briefly for Supabase to process the authentication
+      await Future.delayed(const Duration(milliseconds: 800));
+
+      // Check if authentication was successful
+      if (mounted && SupabaseService.currentUser != null) {
+        await _goHomeAfterSignIn();
+      }
+    } catch (e) {
+      if (mounted) {
+        final errorMsg = e.toString();
+        if (!errorMsg.contains('popup_closed_by_user') && 
+            !errorMsg.contains('User cancelled') &&
+            !errorMsg.contains('sign-in cancelled')) {
+          _showSnackBar('Google sign in failed. Please try again.', isError: true);
+        }
+=======
+      if (!kIsWeb && mounted && SupabaseService.currentUser != null) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomePage()),
+        );
+      }
     } catch (e) {
       if (mounted && !e.toString().contains('popup_closed_by_user')) {
-        _showSnackBar('Google sign in failed');
+        _showSnackBar('Google sign in failed', isError: true);
+>>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
       }
     } finally {
       if (mounted) setState(() => _isSigningInWithGoogle = false);
@@ -134,37 +168,52 @@ class _SignInPageState extends State<SignInPage> {
   }
 
   Future<void> _signInWithFacebook() async {
-    setState(() => _isSigningInWithFacebook = true);
+  setState(() => _isSigningInWithFacebook = true);
 
-    try {
-      final launched = await SupabaseService.client.auth.signInWithOAuth(
-        OAuthProvider.facebook,
-        redirectTo: kIsWeb
-            ? Uri.base.origin
-            : 'io.supabase.keepitclean://login-callback',
+  try {
+    await signInWithFacebookViaSupabase();
+
+    if (!kIsWeb && mounted) {
+      _showSnackBar(
+        'Complete Facebook sign in in your browser',
+        isError: false,
       );
-
-      if (mounted && !launched) {
-        _showSnackBar('Could not open Facebook sign in');
-      } else if (mounted && !kIsWeb) {
-        _showSnackBar('Complete Facebook sign in in your browser');
-      }
-    } catch (e) {
-      if (mounted && !e.toString().contains('popup_closed_by_user')) {
-        _showSnackBar('Facebook sign in failed');
-      }
-    } finally {
-      if (mounted) setState(() => _isSigningInWithFacebook = false);
     }
+  } catch (e) {
+    if (mounted && !e.toString().contains('popup_closed_by_user')) {
+      _showSnackBar('Facebook sign in failed', isError: true);
+    }
+  } finally {
+    if (mounted) setState(() => _isSigningInWithFacebook = false);
   }
+}
 
-  void _showSnackBar(String message) {
+  void _showSnackBar(String message, {required bool isError}) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        backgroundColor: const Color(0xFF4CAF50),
+        content: Row(
+          children: [
+            Icon(
+              isError ? Icons.error_outline : Icons.check_circle_outline,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor:
+            isError ? const Color(0xFFD32F2F) : const Color(0xFF4CAF50),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(12),
       ),
     );
   }
@@ -286,9 +335,8 @@ class _SignInPageState extends State<SignInPage> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _isSigningIn
-                            ? null
-                            : _signInWithEmailPassword,
+                        onPressed:
+                            _isSigningIn ? null : _signInWithEmailPassword,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF43A047),
                           padding: const EdgeInsets.symmetric(vertical: 15),
@@ -422,7 +470,7 @@ class _SignInPageState extends State<SignInPage> {
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Image.asset(imagePath, width: 26, height: 26),
+                  Image.asset(imagePath, width: imagePath.contains('google') ? 38 : 32, height: imagePath.contains('google') ? 38 : 32),
                   const SizedBox(width: 12),
                   Text(
                     text,
@@ -452,7 +500,7 @@ class _SignInPageState extends State<SignInPage> {
           margin: const EdgeInsets.all(10),
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFF4CAF50).withOpacity(0.1),
+            color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, color: const Color(0xFF4CAF50), size: 18),
@@ -490,7 +538,7 @@ class _SignInPageState extends State<SignInPage> {
           margin: const EdgeInsets.all(10),
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFF4CAF50).withOpacity(0.1),
+            color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, color: const Color(0xFF4CAF50), size: 18),

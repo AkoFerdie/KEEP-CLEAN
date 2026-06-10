@@ -46,14 +46,33 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (user == null) return;
 
     try {
-      final data = await SupabaseService.getUserProfile(user.id);
+<<<<<<< HEAD
+      // Ensure profile exists and is up to date
+      await SupabaseService.ensureCurrentUserProfile();
       
+=======
+>>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
+      final data = await SupabaseService.getUserProfile(user.id);
+
       if (data != null) {
         _usernameController.text = data['username'] ?? '';
         _phoneController.text = data['phone'] ?? '';
         _bioController.text = data['bio'] ?? '';
-        _selectedRole = data['role'];
+        _selectedRole = (data['role'] as String?)?.trim();
+        if (_selectedRole == null || _selectedRole!.isEmpty) {
+          _selectedRole = 'User';
+        } else if (_selectedRole!.toLowerCase() == 'user') {
+          _selectedRole = 'User';
+        }
         _email = data['email'] ?? user.email ?? '';
+      } else {
+        // Fallback to user metadata if profile doesn't exist yet
+        _email = user.email ?? '';
+        final metadata = user.userMetadata ?? {};
+        _usernameController.text = 
+            metadata['name'] as String? ??
+            metadata['full_name'] as String? ??
+            _email.split('@').first;
       }
     } catch (e) {
       _showSnack('Failed to load profile data');
@@ -92,10 +111,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   void _showSnack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: const Color(0xFF4CAF50),
-      ),
+      SnackBar(content: Text(msg), backgroundColor: const Color(0xFF4CAF50)),
     );
   }
 
@@ -106,12 +122,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF4CAF50),
         elevation: 4,
-        shadowColor: Colors.green.withOpacity(0.4),
+        shadowColor: Colors.green.withValues(alpha: 0.4),
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: Colors.white,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
@@ -128,7 +147,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2),
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
                     )
                   : const Text(
                       'Save',
@@ -144,7 +165,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ),
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF4CAF50)))
+              child: CircularProgressIndicator(color: Color(0xFF4CAF50)),
+            )
           : LayoutBuilder(
               builder: (context, constraints) {
                 return SingleChildScrollView(
@@ -164,150 +186,192 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                    // ── Section: Personal Info ──
-                    _sectionLabel('Personal Information'),
-                    _buildCard([
-                      _buildField(
-                        controller: _usernameController,
-                        label: 'Username',
-                        icon: Icons.person_outline,
-                        validator: (v) =>
-                            v == null || v.trim().isEmpty ? 'Username is required' : null,
-                      ),
-                      _divider(),
-                      _buildReadOnlyField(
-                        label: 'Email',
-                        value: _email,
-                        icon: Icons.email_outlined,
-                      ),
-                      _divider(),
-                      _buildField(
-                        controller: _phoneController,
-                        label: 'Phone Number',
-                        icon: Icons.phone_outlined,
-                        keyboardType: TextInputType.phone,
-                      ),
-                    ]),
-
-                    const SizedBox(height: 20),
-
-                    // ── Section: Role ──
-                    _sectionLabel('Role'),
-                    _buildCard([
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 4),
-                        child: DropdownButtonFormField<String>(
-                          value: _selectedRole,
-                          isExpanded: true,
-                          dropdownColor: Colors.white,
-                          decoration: InputDecoration(
-                            labelText: 'Select Role',
-                            labelStyle: const TextStyle(
-                                color: Color(0xFF4CAF50),
-                                fontWeight: FontWeight.w500),
-                            prefixIcon: Container(
-                              margin: const EdgeInsets.all(10),
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color:
-                                    const Color(0xFF4CAF50).withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
+                            // ── Section: Personal Info ──
+                            _sectionLabel('Personal Information'),
+                            _buildCard([
+                              _buildField(
+                                controller: _usernameController,
+                                label: 'Username',
+                                icon: Icons.person_outline,
+                                validator: (v) => v == null || v.trim().isEmpty
+                                    ? 'Username is required'
+                                    : null,
                               ),
-                              child: const Icon(Icons.account_circle,
-                                  color: Color(0xFF4CAF50), size: 18),
+                              _divider(),
+                              _buildReadOnlyField(
+                                label: 'Email',
+                                value: _email,
+                                icon: Icons.email_outlined,
+                              ),
+                              _divider(),
+                              _buildField(
+                                controller: _phoneController,
+                                label: 'Phone Number',
+                                icon: Icons.phone_outlined,
+                                keyboardType: TextInputType.phone,
+                              ),
+                            ]),
+
+                            const SizedBox(height: 20),
+
+                            // ── Section: Role ──
+                            _sectionLabel('Role'),
+                            _buildCard([
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 4,
+                                ),
+                                child: DropdownButtonFormField<String>(
+<<<<<<< HEAD
+                                  initialValue: _selectedRole,
+=======
+                                  value: _selectedRole,
+>>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
+                                  isExpanded: true,
+                                  dropdownColor: Colors.white,
+                                  decoration: InputDecoration(
+                                    labelText: 'Select Role',
+                                    labelStyle: const TextStyle(
+                                      color: Color(0xFF4CAF50),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    prefixIcon: Container(
+                                      margin: const EdgeInsets.all(10),
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(
+                                          0xFF4CAF50,
+<<<<<<< HEAD
+                                        ).withValues(alpha: 0.1),
+=======
+                                        ).withOpacity(0.1),
+>>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(
+                                        Icons.account_circle,
+                                        color: Color(0xFF4CAF50),
+                                        size: 18,
+                                      ),
+                                    ),
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                  ),
+                                  items: _roles
+                                      .map(
+                                        (r) => DropdownMenuItem(
+                                          value: r,
+                                          child: Text(
+                                            r,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedRole = v),
+                                  validator: (v) =>
+                                      v == null ? 'Please select a role' : null,
+                                ),
+                              ),
+                            ]),
+
+                            const SizedBox(height: 20),
+
+                            // ── Section: Bio ──
+                            _sectionLabel('About You'),
+                            _buildCard([
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                child: TextFormField(
+                                  controller: _bioController,
+                                  maxLines: 4,
+                                  maxLength: 200,
+                                  decoration: InputDecoration(
+                                    labelText: 'Bio',
+                                    labelStyle: const TextStyle(
+                                      color: Color(0xFF4CAF50),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    hintText:
+                                        'Tell others a little about yourself...',
+                                    hintStyle: const TextStyle(
+                                      color: Colors.black38,
+                                      fontSize: 13,
+                                    ),
+                                    prefixIcon: Container(
+                                      margin: const EdgeInsets.all(10),
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(
+                                          0xFF4CAF50,
+<<<<<<< HEAD
+                                        ).withValues(alpha: 0.1),
+=======
+                                        ).withOpacity(0.1),
+>>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(
+                                        Icons.edit_note_outlined,
+                                        color: Color(0xFF4CAF50),
+                                        size: 18,
+                                      ),
+                                    ),
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                  ),
+                                ),
+                              ),
+                            ]),
+
+                            const SizedBox(height: 28),
+
+                            // ── Save Button ──
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: _isSaving ? null : _saveProfile,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF4CAF50),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 15,
+                                  ),
+                                  elevation: 2,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: _isSaving
+                                    ? const SizedBox(
+                                        height: 22,
+                                        width: 22,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2.5,
+                                        ),
+                                      )
+                                    : const Text(
+                                        'Save Changes',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                              ),
                             ),
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                          ),
-                          items: _roles
-                              .map((r) => DropdownMenuItem(
-                                    value: r,
-                                    child: Text(r,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontSize: 14)),
-                                  ))
-                              .toList(),
-                          onChanged: (v) => setState(() => _selectedRole = v),
-                          validator: (v) =>
-                              v == null ? 'Please select a role' : null,
-                        ),
-                      ),
-                    ]),
 
-                    const SizedBox(height: 20),
-
-                    // ── Section: Bio ──
-                    _sectionLabel('About You'),
-                    _buildCard([
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
-                        child: TextFormField(
-                          controller: _bioController,
-                          maxLines: 4,
-                          maxLength: 200,
-                          decoration: InputDecoration(
-                            labelText: 'Bio',
-                            labelStyle: const TextStyle(
-                                color: Color(0xFF4CAF50),
-                                fontWeight: FontWeight.w500),
-                            hintText:
-                                'Tell others a little about yourself...',
-                            hintStyle: const TextStyle(
-                                color: Colors.black38, fontSize: 13),
-                            prefixIcon: Container(
-                              margin: const EdgeInsets.all(10),
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color:
-                                    const Color(0xFF4CAF50).withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(Icons.edit_note_outlined,
-                                  color: Color(0xFF4CAF50), size: 18),
-                            ),
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                          ),
-                        ),
-                      ),
-                    ]),
-
-                    const SizedBox(height: 28),
-
-                    // ── Save Button ──
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _isSaving ? null : _saveProfile,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4CAF50),
-                          padding: const EdgeInsets.symmetric(vertical: 15),
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: _isSaving
-                            ? const SizedBox(
-                                height: 22,
-                                width: 22,
-                                child: CircularProgressIndicator(
-                                    color: Colors.white, strokeWidth: 2.5),
-                              )
-                            : const Text(
-                                'Save Changes',
-                                style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white),
-                              ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 30),
+                            const SizedBox(height: 30),
                           ],
                         ),
                       ),
@@ -325,9 +389,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
       child: Text(
         label,
         style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Colors.black45),
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Colors.black45,
+        ),
       ),
     );
   }
@@ -339,17 +404,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-              color: Colors.green.withOpacity(0.07),
-              blurRadius: 8,
-              offset: const Offset(0, 3)),
+<<<<<<< HEAD
+            color: Colors.green.withValues(alpha: 0.07),
+=======
+            color: Colors.green.withOpacity(0.07),
+>>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
         ],
       ),
       child: Column(children: children),
     );
   }
 
-  Widget _divider() =>
-      const Divider(height: 1, indent: 56, endIndent: 16);
+  Widget _divider() => const Divider(height: 1, indent: 56, endIndent: 16);
 
   Widget _buildField({
     required TextEditingController controller,
@@ -367,12 +436,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
         decoration: InputDecoration(
           labelText: label,
           labelStyle: const TextStyle(
-              color: Color(0xFF4CAF50), fontWeight: FontWeight.w500),
+            color: Color(0xFF4CAF50),
+            fontWeight: FontWeight.w500,
+          ),
           prefixIcon: Container(
             margin: const EdgeInsets.all(10),
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF4CAF50).withOpacity(0.1),
+              color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: const Color(0xFF4CAF50), size: 18),
@@ -380,8 +451,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: UnderlineInputBorder(
-            borderSide:
-                const BorderSide(color: Color(0xFF4CAF50), width: 1.5),
+            borderSide: const BorderSide(color: Color(0xFF4CAF50), width: 1.5),
           ),
         ),
       ),
@@ -401,12 +471,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
         decoration: InputDecoration(
           labelText: label,
           labelStyle: const TextStyle(
-              color: Colors.black38, fontWeight: FontWeight.w500),
+            color: Colors.black38,
+            fontWeight: FontWeight.w500,
+          ),
           prefixIcon: Container(
             margin: const EdgeInsets.all(10),
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.1),
+              color: Colors.grey.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: Colors.grey, size: 18),

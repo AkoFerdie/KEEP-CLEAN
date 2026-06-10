@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:js' as js;
+<<<<<<< HEAD
+import 'package:shared_preferences/shared_preferences.dart';
+=======
+>>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
 
 class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
@@ -18,12 +20,12 @@ class NotificationService {
     );
 
     await _plugin.initialize(
-      const InitializationSettings(android: android, iOS: ios),
+      settings: const InitializationSettings(android: android, iOS: ios),
     );
 
+    // ✅ FIX: Restored missing angle brackets <...> for generic type
     await _plugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.requestNotificationsPermission();
 
     _initialized = true;
@@ -34,13 +36,15 @@ class NotificationService {
     required String date,
     required String time,
   }) async {
+    // Respect user preference
+    final prefs = await SharedPreferences.getInstance();
+    final enabled = prefs.getBool('notifications_enabled') ?? true;
+    if (!enabled) return;
+
     final title = '🚛 New Patrol Scheduled!';
     final body = '$location — $date at $time';
 
     if (kIsWeb) {
-      try {
-        js.context.callMethod('showPatrolNotification', [title, body]);
-      } catch (_) {}
       return;
     }
 
@@ -64,10 +68,11 @@ class NotificationService {
     );
 
     await _plugin.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      title,
-      body,
-      const NotificationDetails(android: androidDetails, iOS: iosDetails),
+      id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title: title,
+      body: body,
+      notificationDetails:
+          const NotificationDetails(android: androidDetails, iOS: iosDetails),
     );
   }
 }

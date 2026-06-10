@@ -291,7 +291,7 @@ class _WasteRequestCard extends StatelessWidget {
                       imageUrls[0],
                       width: double.infinity,
                       fit: BoxFit.fitWidth,
-                      errorBuilder: (_, __, ___) => Container(
+                      errorBuilder: (_, _, _) => Container(
                         height: w * 0.4,
                         color: Colors.grey.shade100,
                         child: const Icon(Icons.broken_image_outlined,
@@ -480,7 +480,7 @@ class _WasteRequestCard extends StatelessWidget {
                                     imageUrls[index],
                                     fit: BoxFit.cover,
                                     width: double.infinity,
-                                    errorBuilder: (_, __, ___) => Container(
+                                    errorBuilder: (_, _, _) => Container(
                                       color: Colors.grey[200],
                                       child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
                                     ),
@@ -522,7 +522,7 @@ class _WasteRequestCard extends StatelessWidget {
                           children: [
                             CircleAvatar(
                               radius: 22,
-                              backgroundColor: const Color(0xFF4CAF50).withOpacity(0.1),
+                              backgroundColor: const Color(0xFF4CAF50).withValues(alpha: 0.1),
                               backgroundImage: (data['profile_image_url'] ?? '').isNotEmpty
                                   ? NetworkImage(data['profile_image_url']) : null,
                               child: (data['profile_image_url'] ?? '').isEmpty

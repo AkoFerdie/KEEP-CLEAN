@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:url_launcher/url_launcher.dart';
 
 class SupabaseService {
   static SupabaseClient get client => Supabase.instance.client;
@@ -68,13 +67,43 @@ class SupabaseService {
     if (user == null) return;
 
     final existingProfile = await getUserProfile(user.id);
-    if (existingProfile != null) return;
+    if (existingProfile != null) {
+      final existingRole = existingProfile['role']?.toString().trim();
+      if (existingRole == null || existingRole.isEmpty) {
+        await updateUserProfile(user.id, {'role': 'User'});
+      } else if (existingRole.toLowerCase() == 'user') {
+        await updateUserProfile(user.id, {'role': 'User'});
+      }
+<<<<<<< HEAD
+      
+      // Update email and username if missing
+      final email = user.email ?? existingProfile['email'] ?? '';
+      final metadata = user.userMetadata ?? {};
+      final username = existingProfile['username']?.toString().trim();
+      
+      if (username == null || username.isEmpty || email.isEmpty) {
+        final extractedUsername =
+            metadata['name'] as String? ??
+            metadata['full_name'] as String? ??
+            email.split('@').first;
+        
+        await updateUserProfile(user.id, {
+          'username': username?.isEmpty ?? true ? extractedUsername : username,
+          'email': email,
+        });
+      }
+=======
+>>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
+      return;
+    }
 
+    // Create new profile for OAuth users
     final metadata = user.userMetadata ?? {};
     final email = user.email ?? '';
     final username =
         metadata['name'] as String? ??
         metadata['full_name'] as String? ??
+        metadata['preferred_username'] as String? ??
         email.split('@').first;
     final avatarUrl =
         metadata['avatar_url'] as String? ??
@@ -85,7 +114,7 @@ class SupabaseService {
       'id': user.id,
       'username': username,
       'email': email,
-      'role': 'user',
+      'role': 'User',
       'profile_image_url': avatarUrl,
       'created_at': DateTime.now().toIso8601String(),
     });
@@ -621,5 +650,103 @@ class SupabaseService {
   /// Delete scheduled post
   static Future<void> deleteScheduledPost(String postId) async {
     await client.from('scheduled_posts').delete().eq('id', postId);
+  }
+
+  // ============ TWO-FACTOR AUTHENTICATION ============
+
+  /// Send 2FA verification code via email
+  /// NOTE: This requires setting up email templates in Supabase Dashboard
+  /// or using a custom edge function with an email service (SendGrid, AWS SES, etc.)
+  static Future<String> send2FACodeEmail(String email) async {
+    // Generate a 6-digit code
+    final code = (100000 + DateTime.now().millisecondsSinceEpoch % 900000).toString();
+    
+    try {
+      // Option 1: Store code in database with expiry (recommended for production)
+      final user = currentUser;
+      if (user != null) {
+        await client.from('verification_codes').upsert({
+          'user_id': user.id,
+          'email': email,
+          'code': code,
+          'type': '2fa_email',
+          'expires_at': DateTime.now().add(const Duration(minutes: 10)).toIso8601String(),
+          'created_at': DateTime.now().toIso8601String(),
+        });
+      }
+
+      // Option 2: Call your backend API/Edge Function to send email
+      // Example with Supabase Edge Function:
+      // await client.functions.invoke('send-2fa-email', body: {
+      //   'email': email,
+      //   'code': code,
+      // });
+
+      // TODO: Integrate with your email service here
+      // For now, return the code for testing
+      return code;
+    } catch (e) {
+      throw Exception('Failed to send verification code: $e');
+    }
+  }
+
+  /// Verify 2FA code
+  static Future<bool> verify2FACode(String email, String code) async {
+    try {
+      final response = await client
+          .from('verification_codes')
+          .select()
+          .eq('email', email)
+          .eq('code', code)
+          .eq('type', '2fa_email')
+          .gte('expires_at', DateTime.now().toIso8601String())
+          .maybeSingle();
+
+      if (response != null) {
+        // Delete used code
+        await client
+            .from('verification_codes')
+            .delete()
+            .eq('email', email)
+            .eq('code', code);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Send 2FA verification code via SMS
+  /// NOTE: Requires integration with SMS service (Twilio, AWS SNS, etc.)
+  static Future<String> send2FACodeSMS(String phoneNumber) async {
+    // Generate a 6-digit code
+    final code = (100000 + DateTime.now().millisecondsSinceEpoch % 900000).toString();
+    
+    try {
+      // Store code in database
+      final user = currentUser;
+      if (user != null) {
+        await client.from('verification_codes').upsert({
+          'user_id': user.id,
+          'phone': phoneNumber,
+          'code': code,
+          'type': '2fa_sms',
+          'expires_at': DateTime.now().add(const Duration(minutes: 10)).toIso8601String(),
+          'created_at': DateTime.now().toIso8601String(),
+        });
+      }
+
+      // TODO: Call your SMS service here (Twilio, AWS SNS, etc.)
+      // Example with Edge Function:
+      // await client.functions.invoke('send-2fa-sms', body: {
+      //   'phone': phoneNumber,
+      //   'code': code,
+      // });
+
+      return code;
+    } catch (e) {
+      throw Exception('Failed to send SMS code: $e');
+    }
   }
 }

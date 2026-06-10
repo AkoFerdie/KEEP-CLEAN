@@ -65,7 +65,7 @@ class _PostPageState extends State<PostPage> with SingleTickerProviderStateMixin
 
 // ============ BROWSE PICKUPS TAB ============
 class _BrowsePickupsTab extends StatefulWidget {
-  const _BrowsePickupsTab({super.key});
+  const _BrowsePickupsTab();
 
   @override
   State<_BrowsePickupsTab> createState() => _BrowsePickupsTabState();
@@ -137,7 +137,7 @@ class _PickupCardState extends State<_PickupCard> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -152,7 +152,7 @@ class _PickupCardState extends State<_PickupCard> {
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
+                errorBuilder: (_, _, _) => Container(
                   height: 200,
                   color: Colors.grey[200],
                   child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
@@ -177,7 +177,7 @@ class _PickupCardState extends State<_PickupCard> {
                   children: [
                     CircleAvatar(
                       radius: 18,
-                      backgroundColor: Colors.green.withOpacity(0.1),
+                      backgroundColor: Colors.green.withValues(alpha: 0.1),
                       backgroundImage: profileImageUrl != null && profileImageUrl.isNotEmpty
                           ? NetworkImage(profileImageUrl)
                           : null,
@@ -203,8 +203,8 @@ class _PickupCardState extends State<_PickupCard> {
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: status == 'open'
-                              ? Colors.green.withOpacity(0.1)
-                              : Colors.orange.withOpacity(0.1),
+                              ? Colors.green.withValues(alpha: 0.1)
+                              : Colors.orange.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -344,9 +344,9 @@ class _PickupCardState extends State<_PickupCard> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -413,7 +413,7 @@ class _PickupCardState extends State<_PickupCard> {
                                     imageUrls[index],
                                     fit: BoxFit.cover,
                                     width: double.infinity,
-                                    errorBuilder: (_, __, ___) => Container(
+                                    errorBuilder: (_, _, _) => Container(
                                       color: Colors.grey[200],
                                       child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
                                     ),
@@ -455,7 +455,7 @@ class _PickupCardState extends State<_PickupCard> {
                           children: [
                             CircleAvatar(
                               radius: 22,
-                              backgroundColor: Colors.green.withOpacity(0.1),
+                              backgroundColor: Colors.green.withValues(alpha: 0.1),
                               backgroundImage: profileImageUrl != null && profileImageUrl.isNotEmpty
                                   ? NetworkImage(profileImageUrl) : null,
                               child: profileImageUrl == null || profileImageUrl.isEmpty
@@ -475,7 +475,7 @@ class _PickupCardState extends State<_PickupCard> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
-                                color: status == 'open' ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                                color: status == 'open' ? Colors.green.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -562,7 +562,7 @@ class _PickupCardState extends State<_PickupCard> {
   }
 
   void _showImagesSheet(BuildContext context, List imageUrls) {
-    int _current = 0;
+    int current = 0;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -590,7 +590,7 @@ class _PickupCardState extends State<_PickupCard> {
                     ),
                     const Spacer(),
                     Text(
-                      '${_current + 1} / ${imageUrls.length}',
+                      '${current + 1} / ${imageUrls.length}',
                       style: const TextStyle(color: Colors.white70, fontSize: 13),
                     ),
                     const Spacer(),
@@ -605,12 +605,12 @@ class _PickupCardState extends State<_PickupCard> {
               Expanded(
                 child: PageView.builder(
                   itemCount: imageUrls.length,
-                  onPageChanged: (i) => setModalState(() => _current = i),
+                  onPageChanged: (i) => setModalState(() => current = i),
                   itemBuilder: (context, index) => InteractiveViewer(
                     child: Image.network(
                       imageUrls[index],
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Center(
+                      errorBuilder: (_, _, _) => const Center(
                         child: Icon(Icons.broken_image, color: Colors.white54, size: 60),
                       ),
                       loadingBuilder: (context, child, progress) => progress == null
@@ -631,10 +631,10 @@ class _PickupCardState extends State<_PickupCard> {
                       (i) => AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         margin: const EdgeInsets.symmetric(horizontal: 3),
-                        width: _current == i ? 16 : 6,
+                        width: current == i ? 16 : 6,
                         height: 6,
                         decoration: BoxDecoration(
-                          color: _current == i ? Colors.white : Colors.white38,
+                          color: current == i ? Colors.white : Colors.white38,
                           borderRadius: BorderRadius.circular(3),
                         ),
                       ),
@@ -784,9 +784,11 @@ class _SchedulePickupTabState extends State<_SchedulePickupTab> {
     final List<String> imageUrls = await _uploadImages();
 
     if (imageUrls.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No images uploaded")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("No images uploaded")),
+        );
+      }
       return;
     }
 
@@ -805,6 +807,7 @@ class _SchedulePickupTabState extends State<_SchedulePickupTab> {
       'created_at': DateTime.now().toIso8601String(),
     });
 
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("✅ Pickup scheduled successfully!"),
@@ -823,9 +826,11 @@ class _SchedulePickupTabState extends State<_SchedulePickupTab> {
     // Switch to Browse Pickups tab immediately
     widget.onPostSuccess();
   } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Submission failed: $e")),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Submission failed: $e")),
+      );
+    }
   } finally {
     if (mounted) {
       setState(() {
@@ -840,7 +845,7 @@ class _SchedulePickupTabState extends State<_SchedulePickupTab> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Location services are disabled.")),
         );
         return;
@@ -850,7 +855,7 @@ class _SchedulePickupTabState extends State<_SchedulePickupTab> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("Location permissions are denied.")),
           );
           return;
@@ -858,7 +863,7 @@ class _SchedulePickupTabState extends State<_SchedulePickupTab> {
       }
 
       if (permission == LocationPermission.deniedForever) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text("Location permissions are permanently denied.")),
         );
@@ -874,16 +879,17 @@ class _SchedulePickupTabState extends State<_SchedulePickupTab> {
       if (await canLaunchUrl(Uri.parse(googleMapsUrl))) {
         await launchUrl(Uri.parse(googleMapsUrl),
             mode: LaunchMode.externalApplication);
-
-        _locationController.text =
-            "${position.latitude}, ${position.longitude}";
+        if (mounted) {
+          _locationController.text =
+              "${position.latitude}, ${position.longitude}";
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Could not open Google Maps.")),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error fetching location: $e")),
       );
     }
@@ -1041,7 +1047,7 @@ class _SchedulePickupTabState extends State<_SchedulePickupTab> {
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         itemCount: _selectedImages.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        separatorBuilder: (_, _) => const SizedBox(width: 8),
                         itemBuilder: (context, index) {
                           return Stack(
                             children: [
@@ -1052,7 +1058,7 @@ class _SchedulePickupTabState extends State<_SchedulePickupTab> {
                                   width: 100,
                                   height: 100,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) =>
+                                  errorBuilder: (_, _, _) =>
                                       const Icon(Icons.broken_image),
                                 ),
                               ),

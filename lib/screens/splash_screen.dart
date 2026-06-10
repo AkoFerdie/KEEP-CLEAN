@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../supabase_config.dart';
 import '../services/supabase_service.dart';
 import 'getting_started_page.dart';
 import 'home_page.dart';
@@ -29,48 +33,59 @@ class _SplashScreenState extends State<SplashScreen>
   bool _disposed = false;
   bool _isPreparingAssets = false;
   bool _assetsReady = false;
+  bool _hasNavigated = false;
+  StreamSubscription<AuthState>? _authSubscription;
 
   @override
   void initState() {
     super.initState();
 
     _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
+<<<<<<< HEAD
+      duration: const Duration(milliseconds: 500),
       vsync: this,
     );
-
     _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 450),
       vsync: this,
     );
-
     _slideController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 400),
       vsync: this,
     );
-
     _rotateController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 1000),
+=======
+      duration: const Duration(milliseconds: 700),
+      vsync: this,
+    );
+    _scaleController = AnimationController(
+      duration: const Duration(milliseconds: 650),
+      vsync: this,
+    );
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+    _rotateController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+>>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
       vsync: this,
     );
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
     );
-
     _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
       CurvedAnimation(parent: _scaleController, curve: Curves.elasticOut),
     );
-
     _slideAnimation =
         Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero).animate(
           CurvedAnimation(parent: _slideController, curve: Curves.easeOutBack),
         );
-
-    _rotateAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _rotateController, curve: Curves.linear));
+    _rotateAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _rotateController, curve: Curves.linear),
+    );
   }
 
   @override
@@ -84,43 +99,140 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _prepareSplash() async {
     _isPreparingAssets = true;
 
-    await Future.wait([
-      precacheImage(_logoImage, context),
-      precacheImage(_gettingStartedImage, context),
-    ]);
+    // Start animations immediately — don't wait for anything
+    _startAnimations();
 
-    if (!mounted || _disposed) return;
+    // Listen for OAuth sign-in redirect
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
+      data,
+    ) {
+      if (data.event == AuthChangeEvent.signedIn && !_hasNavigated) {
+        _navigateToHomePage();
+      }
+    });
+
+<<<<<<< HEAD
+    // Run init + asset caching with a 1 second hard timeout
+=======
+    // Run init + asset caching with a 2 second hard timeout
+>>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
+    await Future.wait([
+      _initializeApp(),
+      precacheImage(_logoImage, context).catchError((_) {}),
+      precacheImage(_gettingStartedImage, context).catchError((_) {}),
+    ]).timeout(
+<<<<<<< HEAD
+      const Duration(milliseconds: 600),
+      onTimeout: () => [], // 👈 move on after 0.6s no matter what
+=======
+      const Duration(seconds: 2),
+      onTimeout: () => [], // 👈 move on after 2s no matter what
+>>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
+    );
+
+    if (!mounted || _disposed || _hasNavigated) return;
 
     setState(() => _assetsReady = true);
 
-    // If the user already returned signed in from Google, go directly to HomePage.
-    if (SupabaseService.currentUser != null) {
+    // Check if already signed in
+    final session = Supabase.instance.client.auth.currentSession;
+    final user = SupabaseService.currentUser;
+
+    if (session != null || user != null) {
+<<<<<<< HEAD
+      await _navigateToHomePage();
+=======
       _navigateToHomePage();
+>>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
       return;
     }
 
-    _startAnimations();
+    // Check for OAuth redirect in URL
+    final uri = Uri.base;
+    final isOAuthRedirect = uri.fragment.contains('access_token') ||
+<<<<<<< HEAD
+        uri.queryParameters.containsKey('code') ||
+        uri.fragment.contains('error');
+
+    if (isOAuthRedirect) {
+      // Check if there's an error in the URL
+      if (uri.fragment.contains('error')) {
+        debugPrint('OAuth error detected, navigating to getting started');
+        _navigateToGettingStarted();
+        return;
+      }
+
+      // Wait briefly for session to be established
+      await Future.delayed(const Duration(milliseconds: 300));
+=======
+        uri.queryParameters.containsKey('code');
+
+    if (isOAuthRedirect) {
+      await Future.delayed(const Duration(milliseconds: 1500));
+>>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
+      if (!mounted || _disposed || _hasNavigated) return;
+
+      final sessionAfterWait = Supabase.instance.client.auth.currentSession;
+      if (sessionAfterWait != null) {
+<<<<<<< HEAD
+        await _navigateToHomePage();
+=======
+        _navigateToHomePage();
+>>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
+        return;
+      }
+    }
+
+    // No session — go to getting started
     _navigateToGettingStarted();
   }
 
+  Future<void> _initializeApp() async {
+    try {
+      await SupabaseConfig.initialize();
+    } catch (e) {
+      debugPrint('Warning: Supabase initialization failed: $e');
+    }
+  }
+
+<<<<<<< HEAD
+  Future<void> _navigateToHomePage() async {
+    if (!mounted || _disposed || _hasNavigated) return;
+    _hasNavigated = true;
+
+    // Ensure user profile exists before navigating
+    try {
+      await SupabaseService.ensureCurrentUserProfile();
+    } catch (e) {
+      debugPrint('Profile creation failed: $e');
+    }
+
+    if (!mounted) return;
+=======
   void _navigateToHomePage() {
-    if (!mounted || _disposed) return;
+    if (!mounted || _disposed || _hasNavigated) return;
+    _hasNavigated = true;
+>>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
 
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
             const HomePage(),
-        transitionDuration: const Duration(milliseconds: 500),
+        transitionDuration: const Duration(milliseconds: 400),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
+<<<<<<< HEAD
+          return FadeTransition(
+            opacity: animation,
+=======
           return SlideTransition(
-            position:
-                Tween<Offset>(
-                  begin: const Offset(1.0, 0.0),
-                  end: Offset.zero,
-                ).animate(
-                  CurvedAnimation(parent: animation, curve: Curves.easeInOut),
-                ),
+            position: Tween<Offset>(
+              begin: const Offset(1.0, 0.0),
+              end: Offset.zero,
+            ).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+            ),
+>>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
             child: child,
           );
         },
@@ -128,26 +240,33 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  _startAnimations() async {
-    await Future.delayed(const Duration(milliseconds: 200));
+  Future<void> _startAnimations() async {
+<<<<<<< HEAD
+    await Future.delayed(const Duration(milliseconds: 50));
     if (_disposed) return;
     _fadeController.forward();
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 100));
     if (_disposed) return;
     _scaleController.forward();
-    await Future.delayed(const Duration(milliseconds: 200));
+    await Future.delayed(const Duration(milliseconds: 80));
+=======
+    await Future.delayed(const Duration(milliseconds: 100));
+    if (_disposed) return;
+    _fadeController.forward();
+    await Future.delayed(const Duration(milliseconds: 150));
+    if (_disposed) return;
+    _scaleController.forward();
+    await Future.delayed(const Duration(milliseconds: 100));
+>>>>>>> fc87ae7548b0858df8bc785774cf4ce207103555
     if (_disposed) return;
     _slideController.forward();
     if (_disposed) return;
     _rotateController.repeat();
   }
 
-  _navigateToGettingStarted() async {
-    await Future.delayed(const Duration(milliseconds: 3500));
-    if (!mounted) return;
+  Future<void> _navigateToGettingStarted() async {
+    if (!mounted || _hasNavigated) return;
 
-    // If the user is already signed in, go directly to HomePage.
-    final user = SupabaseService.currentUser;
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         systemNavigationBarColor: Colors.transparent,
@@ -155,45 +274,20 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
 
-    if (user != null) {
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              const HomePage(),
-          transitionDuration: const Duration(milliseconds: 500),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return SlideTransition(
-              position:
-                  Tween<Offset>(
-                    begin: const Offset(1.0, 0.0),
-                    end: Offset.zero,
-                  ).animate(
-                    CurvedAnimation(parent: animation, curve: Curves.easeInOut),
-                  ),
-              child: child,
-            );
-          },
-        ),
-      );
-      return;
-    }
-
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
             const GettingStartedPage(),
-        transitionDuration: const Duration(milliseconds: 500),
+        transitionDuration: const Duration(milliseconds: 400),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return SlideTransition(
-            position:
-                Tween<Offset>(
-                  begin: const Offset(1.0, 0.0),
-                  end: Offset.zero,
-                ).animate(
-                  CurvedAnimation(parent: animation, curve: Curves.easeInOut),
-                ),
+            position: Tween<Offset>(
+              begin: const Offset(1.0, 0.0),
+              end: Offset.zero,
+            ).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+            ),
             child: child,
           );
         },
@@ -204,6 +298,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void dispose() {
     _disposed = true;
+    _authSubscription?.cancel();
     _fadeController.dispose();
     _scaleController.dispose();
     _slideController.dispose();
@@ -232,7 +327,6 @@ class _SplashScreenState extends State<SplashScreen>
           ),
           child: Stack(
             children: [
-              // Floating background elements
               Positioned(
                 top: 100,
                 right: -50,
@@ -246,7 +340,7 @@ class _SplashScreenState extends State<SplashScreen>
                         height: 150,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.white.withOpacity(0.1),
+                          color: Colors.white.withValues(alpha: 0.1),
                         ),
                       ),
                     );
@@ -266,15 +360,13 @@ class _SplashScreenState extends State<SplashScreen>
                         height: 100,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.white.withOpacity(0.08),
+                          color: Colors.white.withValues(alpha: 0.08),
                         ),
                       ),
                     );
                   },
                 ),
               ),
-
-              // Main content
               FadeTransition(
                 opacity: _fadeAnimation,
                 child: Center(
@@ -289,8 +381,6 @@ class _SplashScreenState extends State<SplashScreen>
                           SizedBox(
                             height: MediaQuery.of(context).size.height * 0.15,
                           ),
-
-                          // Logo with white background
                           ScaleTransition(
                             scale: _scaleAnimation,
                             child: AnimatedOpacity(
@@ -304,7 +394,7 @@ class _SplashScreenState extends State<SplashScreen>
                                   borderRadius: BorderRadius.circular(30),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.2),
+                                      color: Colors.black.withValues(alpha: 0.2),
                                       spreadRadius: 3,
                                       blurRadius: 15,
                                       offset: const Offset(0, 5),
@@ -317,22 +407,18 @@ class _SplashScreenState extends State<SplashScreen>
                                     image: _logoImage,
                                     fit: BoxFit.contain,
                                     gaplessPlayback: true,
-                                    errorBuilder:
-                                        (context, error, stackTrace) =>
-                                            const Icon(
-                                              Icons.eco,
-                                              size: 80,
-                                              color: Color(0xFF4CAF50),
-                                            ),
+                                    errorBuilder: (context, error, stackTrace) =>
+                                        const Icon(
+                                          Icons.eco,
+                                          size: 80,
+                                          color: Color(0xFF4CAF50),
+                                        ),
                                   ),
                                 ),
                               ),
                             ),
                           ),
-
                           const SizedBox(height: 50),
-
-                          // App Title
                           SlideTransition(
                             position: _slideAnimation,
                             child: const Text(
@@ -352,10 +438,7 @@ class _SplashScreenState extends State<SplashScreen>
                               ),
                             ),
                           ),
-
                           const SizedBox(height: 15),
-
-                          // Subtitle
                           SlideTransition(
                             position: _slideAnimation,
                             child: Container(
@@ -364,10 +447,10 @@ class _SplashScreenState extends State<SplashScreen>
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
+                                color: Colors.white.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: Colors.white.withOpacity(0.3),
+                                  color: Colors.white.withValues(alpha: 0.3),
                                   width: 1,
                                 ),
                               ),
@@ -382,10 +465,7 @@ class _SplashScreenState extends State<SplashScreen>
                               ),
                             ),
                           ),
-
                           const SizedBox(height: 80),
-
-                          // Enhanced loading indicator
                           SlideTransition(
                             position: _slideAnimation,
                             child: Column(
@@ -395,7 +475,7 @@ class _SplashScreenState extends State<SplashScreen>
                                   height: 50,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: Colors.white.withOpacity(0.2),
+                                    color: Colors.white.withValues(alpha: 0.2),
                                   ),
                                   child: const Center(
                                     child: SizedBox(
@@ -421,7 +501,6 @@ class _SplashScreenState extends State<SplashScreen>
                               ],
                             ),
                           ),
-
                           SizedBox(
                             height: MediaQuery.of(context).size.height * 0.2,
                           ),

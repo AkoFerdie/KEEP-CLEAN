@@ -60,7 +60,7 @@ class NotificationsPage extends StatelessWidget {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
-                      BoxShadow(color: Colors.green.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 3)),
+                      BoxShadow(color: Colors.green.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 3)),
                     ],
                   ),
                   child: Padding(
@@ -70,7 +70,7 @@ class NotificationsPage extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF4CAF50).withOpacity(0.12),
+                            color: const Color(0xFF4CAF50).withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: const Icon(Icons.local_shipping_outlined,
@@ -146,7 +146,7 @@ class NotificationsPage extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4CAF50).withOpacity(0.12),
+                    color: const Color(0xFF4CAF50).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Icon(Icons.local_shipping, color: Color(0xFF4CAF50), size: 30),
@@ -205,7 +205,7 @@ class NotificationsPage extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, color: color, size: 18),

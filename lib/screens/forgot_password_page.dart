@@ -44,6 +44,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       String message = "Failed to send reset email";
 
       if (e.toString().contains('User not found')) {
@@ -117,7 +118,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 child: Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4CAF50).withOpacity(0.1),
+                    color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -159,7 +160,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.green.withOpacity(0.07),
+                      color: Colors.green.withValues(alpha: 0.07),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),
@@ -178,7 +179,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       margin: const EdgeInsets.all(10),
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4CAF50).withOpacity(0.1),
+                        color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(Icons.email_outlined, color: Color(0xFF4CAF50), size: 18),

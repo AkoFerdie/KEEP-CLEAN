@@ -42,8 +42,8 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
   /// Pick multiple images from gallery (Web + Mobile)
   Future<void> _pickMedia() async {
     if (kIsWeb) {
-      final List<XFile>? files = await _picker.pickMultiImage();
-      if (files != null && files.isNotEmpty) {
+      final List<XFile> files = await _picker.pickMultiImage();
+      if (files.isNotEmpty) {
         List<Uint8List> images = [];
         List<String> names = [];
         for (var file in files) {
@@ -58,8 +58,8 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
         });
       }
     } else {
-      final List<XFile>? files = await _picker.pickMultiImage();
-      if (files != null && files.isNotEmpty) {
+      final List<XFile> files = await _picker.pickMultiImage();
+      if (files.isNotEmpty) {
         List<File> mobileFiles = files.map((f) => File(f.path)).toList();
         List<String> names = files.map((f) => f.name).toList();
         setState(() {
@@ -134,6 +134,7 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
         mediaUrls: mediaUrls,
       );
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("✅ Event posted successfully!")),
       );
@@ -149,6 +150,7 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
         _fileNames.clear();
       });
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("❌ Error: ${e.toString()}")));
@@ -230,7 +232,7 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
         margin: const EdgeInsets.all(10),
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFF4CAF50).withOpacity(0.1),
+          color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, color: const Color(0xFF4CAF50), size: 18),
@@ -461,7 +463,7 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
                       color: ThemeHelper.getSurfaceColor(context),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: const Color(0xFF4CAF50).withOpacity(0.35),
+                        color: const Color(0xFF4CAF50).withValues(alpha: 0.35),
                         width: 1.5,
                       ),
                     ),
@@ -470,7 +472,7 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF4CAF50).withOpacity(0.1),
+                            color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
@@ -575,7 +577,7 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF4CAF50).withOpacity(0.1),
+                  color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -847,7 +849,7 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
 
                 // T-Shirt Size
                 DropdownButtonFormField<String>(
-                  value: selectedTShirtSize,
+                  initialValue: selectedTShirtSize,
                   decoration: const InputDecoration(
                     labelText: 'T-Shirt Size *',
                     border: OutlineInputBorder(),
@@ -865,7 +867,7 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
 
                 // Experience Level
                 DropdownButtonFormField<String>(
-                  value: selectedExperience,
+                  initialValue: selectedExperience,
                   decoration: const InputDecoration(
                     labelText: 'Cleanup Experience',
                     border: OutlineInputBorder(),

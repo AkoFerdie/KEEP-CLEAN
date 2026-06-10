@@ -31,10 +31,25 @@ class SecondPage extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // ✅ Responsive Logo
+                      // ✅ Responsive Logo with error handling
                       Image.asset(
                         'assets/front_logo.png',
                         width: screenWidth * 0.3,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            width: screenWidth * 0.3,
+                            height: screenWidth * 0.3,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF4CAF50),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.eco,
+                              size: screenWidth * 0.15,
+                              color: Colors.white,
+                            ),
+                          );
+                        },
                       ),
 
                       SizedBox(height: screenHeight * 0.02),

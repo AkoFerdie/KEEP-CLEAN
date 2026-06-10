@@ -39,7 +39,7 @@ class _HysacamDashboardState extends State<HysacamDashboard> with SingleTickerPr
       appBar: AppBar(
         backgroundColor: const Color(0xFF4CAF50),
         elevation: 4,
-        shadowColor: Colors.green.withOpacity(0.4),
+        shadowColor: Colors.green.withValues(alpha: 0.4),
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
@@ -58,7 +58,7 @@ class _HysacamDashboardState extends State<HysacamDashboard> with SingleTickerPr
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: CircleAvatar(
-              backgroundColor: Colors.white.withOpacity(0.2),
+              backgroundColor: Colors.white.withValues(alpha: 0.2),
               child: const Icon(Icons.local_shipping_outlined, color: Colors.white, size: 22),
             ),
           ),
@@ -141,7 +141,7 @@ class _LocationReportCard extends StatelessWidget {
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
-              BoxShadow(color: Colors.green.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4)),
+              BoxShadow(color: Colors.green.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 4)),
             ],
           ),
           child: Theme(
@@ -151,7 +151,7 @@ class _LocationReportCard extends StatelessWidget {
               leading: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF4CAF50).withOpacity(0.12),
+                  color: const Color(0xFF4CAF50).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.location_on, color: Color(0xFF4CAF50), size: 24),
@@ -167,7 +167,7 @@ class _LocationReportCard extends StatelessWidget {
               trailing: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: countColor.withOpacity(0.12),
+                  color: countColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -254,7 +254,7 @@ class _ReportItem extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.12),
+                  color: statusColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -291,7 +291,7 @@ class _ReportItem extends StatelessWidget {
                   data['image_urls'][0],
                   width: double.infinity,
                   fit: BoxFit.fitWidth,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
                 ),
               ),
             const SizedBox(height: 10),
@@ -416,7 +416,7 @@ class _PatrolScheduleTabState extends State<_PatrolScheduleTab> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
-                BoxShadow(color: Colors.green.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4)),
+                BoxShadow(color: Colors.green.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 4)),
               ],
             ),
             child: Column(
@@ -425,7 +425,7 @@ class _PatrolScheduleTabState extends State<_PatrolScheduleTab> {
                 const Text('Schedule New Patrol', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF4CAF50))),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: null,
+                  initialValue: null,
                   hint: const Text('Select Location'),
                   items: widget.locations.map((loc) => DropdownMenuItem(value: loc, child: Text(loc))).toList(),
                   onChanged: (val) => _locationController.text = val ?? '',
@@ -549,7 +549,7 @@ class _PatrolCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFF4CAF50).withOpacity(0.12),
+              color: const Color(0xFF4CAF50).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.local_shipping, color: Color(0xFF4CAF50), size: 24),
@@ -604,7 +604,7 @@ class _PatrolCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
-                value: selectedLocation,
+                initialValue: selectedLocation,
                 items: locations.map((loc) => DropdownMenuItem(value: loc, child: Text(loc))).toList(),
                 onChanged: (val) => setDialogState(() => selectedLocation = val ?? selectedLocation),
                 decoration: InputDecoration(
