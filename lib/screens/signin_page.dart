@@ -195,7 +195,8 @@ class _SignInPageState extends State<SignInPage> {
             isError ? const Color(0xFFD32F2F) : const Color(0xFF4CAF50),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 16, left: 12, right: 12),
+        duration: const Duration(seconds: 2),
       ),
     );
   }

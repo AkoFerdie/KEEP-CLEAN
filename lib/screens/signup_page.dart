@@ -87,7 +87,9 @@ class _SignUpPageState extends State<SignUpPage> {
       
       String message = "Signup failed: ${e.toString()}";
 
-      if (e.toString().contains('email_provider_disabled')) {
+      if (e.toString().contains('over_email_send_rate_limit')) {
+        message = "⏱️ Too many signup attempts. Please wait 1 minute and try again.";
+      } else if (e.toString().contains('email_provider_disabled')) {
         message = "❌ Email signup is disabled in Supabase.\n\nFix: Go to Supabase Dashboard → Authentication → Providers → Enable Email";
       } else if (e.toString().contains('email_address_invalid')) {
         message = "❌ Email format rejected by Supabase.\n\nTry: Use a different email format (e.g., firstname.lastname@gmail.com)";
@@ -330,7 +332,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
               _buildTextField(
                 label: "Confirm Password",
-                icon: Icons.lock_outline,
+                icon: Icons.lock,
                 controller: _confirmPasswordController,
                 obscureText: !_showConfirmPassword,
                 onToggle: () =>

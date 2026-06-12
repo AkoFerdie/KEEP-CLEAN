@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../utils/theme_helper.dart';
 
 class HelpSupportPage extends StatefulWidget {
@@ -144,8 +145,17 @@ class _HelpSupportPageState extends State<HelpSupportPage> {
             Icons.email_outlined,
             "Email Support",
             "Get help via email",
-            "support@keepitclean.com",
-            () => _showSnack("Opening email..."),
+            "keepitcleanfixed@gmail.com",
+            () async {
+              final uri = Uri(
+                scheme: 'mailto',
+                path: 'keepitcleanfixed@gmail.com',
+                queryParameters: {
+                  'subject': 'Help & Support - Keep It Clean App',
+                },
+              );
+              await launchUrl(uri);
+            },
           ),
           const SizedBox(height: 12),
           _buildContactCard(

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:keep_it_clean/services/payment_service_mesomb.dart';
+import 'package:keep_it_clean/services/supabase_service.dart';
 
 class PaymentPage extends StatefulWidget {
   final String docId;
@@ -19,6 +21,7 @@ class _PaymentPageState extends State<PaymentPage> {
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   bool _isProcessing = false;
+  String _statusMessage = '';
 
   final List<Map<String, dynamic>> _paymentProviders = [
     {
@@ -44,114 +47,87 @@ class _PaymentPageState extends State<PaymentPage> {
 
   Future<void> _processPayment() async {
     if (_selectedProvider == null) {
-      _showSnackBar('Please select a payment method');
+      _showSnackBar('Please select a payment method', isError: true);
       return;
     }
-
     if (_amountController.text.isEmpty) {
-      _showSnackBar('Please enter payment amount');
+      _showSnackBar('Please enter payment amount', isError: true);
       return;
     }
-
+    if (int.tryParse(_amountController.text.trim()) == null || int.parse(_amountController.text.trim()) < 10) {
+      _showSnackBar('Minimum payment amount is 10 FCFA', isError: true);
+      return;
+    }
     if (_phoneController.text.isEmpty) {
-      _showSnackBar('Please enter your phone number');
+      _showSnackBar('Please enter your phone number', isError: true);
       return;
     }
 
-    setState(() => _isProcessing = true);
+    setState(() {
+      _isProcessing = true;
+      _statusMessage = 'Sending payment request...';
+    });
 
     try {
-      // Simulate payment processing
-      await Future.delayed(const Duration(seconds: 3));
+      final result = await PaymentService.initiatePayment(
+        phoneNumber: _phoneController.text.trim(),
+        amount: _amountController.text.trim(),
+        provider: _selectedProvider!,
+      );
 
-      // After successful payment, show accept dialog
+      print('Payment Result: $result');
+
+      if (result['success'] != true) {
+        final errorMsg = result['message'] ?? result['error'] ?? 'Payment failed';
+        throw Exception(errorMsg);
+      }
+
+      // Payment request sent — wait for user to respond to USSD PIN prompt
       if (mounted) {
-        Navigator.pop(context); // Close payment page
-        _showAcceptDialog();
+        setState(() => _statusMessage = '📱 Check your phone and enter your PIN...');
+      }
+
+      await Future.delayed(const Duration(seconds: 5));
+
+      if (mounted) {
+        setState(() => _statusMessage = '✅ Confirming payment...');
+      }
+
+      await Future.delayed(const Duration(seconds: 1));
+
+      // Finalize — accept the waste request
+      if (mounted) {
+        final user = SupabaseService.currentUser;
+        if (user != null) {
+          final userProfile = await SupabaseService.getUserProfile(user.id);
+          final username = userProfile?['username'] ?? user.email ?? 'Someone';
+
+          await SupabaseService.acceptWasteRequest(widget.docId, username);
+
+          Navigator.pop(context);
+          _showSnackBar(
+            '✅ Payment successful! Pickup accepted. Contact: ${widget.requestData['phone']}',
+          );
+        }
       }
     } catch (e) {
-      _showSnackBar('Payment failed. Please try again.');
+      _showSnackBar('❌ Payment failed: ${e.toString()}', isError: true);
     } finally {
-      if (mounted) setState(() => _isProcessing = false);
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+          _statusMessage = '';
+        });
+      }
     }
   }
 
-  void _showAcceptDialog() {
-    final w = MediaQuery.of(context).size.width;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.handshake_outlined, color: Color(0xFF4CAF50)),
-            SizedBox(width: 8),
-            Text('Pickup Request',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('📍 ${widget.requestData['location'] ?? ''}',
-                style: TextStyle(fontSize: w * 0.035, color: Colors.black87)),
-            const SizedBox(height: 6),
-            Text('⏰ Pickup time: ${_formatPickupTime(widget.requestData['pickupTime'])}',
-                style: TextStyle(fontSize: w * 0.033, color: Colors.black54)),
-            const SizedBox(height: 6),
-            Text('💰 Amount: ${widget.requestData['amount'] ?? '0'} FCFA',
-                style: TextStyle(
-                    fontSize: w * 0.033,
-                    color: const Color(0xFF2E7D32),
-                    fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            Text('📞 Contact: ${widget.requestData['phone'] ?? 'N/A'}',
-                style: TextStyle(fontSize: w * 0.033, color: Colors.black54)),
-            const SizedBox(height: 12),
-            const Text(
-              'Payment successful! Do you want to accept this pickup request?',
-              style: TextStyle(fontSize: 13, color: Colors.black45),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Decline',
-                style: TextStyle(
-                    color: Colors.redAccent, fontWeight: FontWeight.w600)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              // Here you would call the accept request function
-              _showSnackBar('Pickup request accepted successfully!');
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4CAF50),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-            child: const Text('Accept',
-                style:
-                    TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatPickupTime(dynamic value) {
-    if (value == null) return 'Flexible';
-    return value.toString();
-  }
-
-  void _showSnackBar(String message) {
+  void _showSnackBar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: const Color(0xFF4CAF50),
+        backgroundColor: isError ? Colors.redAccent : const Color(0xFF4CAF50),
+        duration: Duration(seconds: isError ? 4 : 3),
       ),
     );
   }
@@ -235,47 +211,49 @@ class _PaymentPageState extends State<PaymentPage> {
             const SizedBox(height: 16),
 
             ..._paymentProviders.map((provider) => Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              child: RadioListTile<String>(
-                value: provider['value'],
-                groupValue: _selectedProvider,
-                onChanged: (value) => setState(() => _selectedProvider = value),
-                title: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: provider['color'].withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        provider['icon'],
-                        color: provider['color'],
-                        size: 24,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: RadioListTile<String>(
+                    value: provider['value'],
+                    groupValue: _selectedProvider,
+                    onChanged: _isProcessing
+                        ? null
+                        : (value) => setState(() => _selectedProvider = value),
+                    title: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: (provider['color'] as Color).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            provider['icon'],
+                            color: provider['color'],
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          provider['name'],
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    activeColor: const Color(0xFF4CAF50),
+                    tileColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: _selectedProvider == provider['value']
+                            ? const Color(0xFF4CAF50)
+                            : Colors.grey.shade300,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Text(
-                      provider['name'],
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-                activeColor: const Color(0xFF4CAF50),
-                tileColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: _selectedProvider == provider['value']
-                        ? const Color(0xFF4CAF50)
-                        : Colors.grey.shade300,
                   ),
-                ),
-              ),
-            )),
+                )),
 
             SizedBox(height: w * 0.06),
 
@@ -292,6 +270,7 @@ class _PaymentPageState extends State<PaymentPage> {
             TextField(
               controller: _phoneController,
               keyboardType: TextInputType.phone,
+              enabled: !_isProcessing,
               decoration: InputDecoration(
                 hintText: 'Enter your phone number',
                 prefixIcon: const Icon(Icons.phone, color: Color(0xFF4CAF50)),
@@ -303,7 +282,8 @@ class _PaymentPageState extends State<PaymentPage> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF4CAF50), width: 2),
+                  borderSide:
+                      const BorderSide(color: Color(0xFF4CAF50), width: 2),
                 ),
               ),
             ),
@@ -323,9 +303,13 @@ class _PaymentPageState extends State<PaymentPage> {
             TextField(
               controller: _amountController,
               keyboardType: TextInputType.number,
+              enabled: !_isProcessing,
               decoration: InputDecoration(
                 hintText: 'Enter amount (e.g. 100)',
-                prefixIcon: const Icon(Icons.account_balance_wallet, color: Color(0xFF4CAF50)),
+                prefixIcon: const Icon(
+                  Icons.account_balance_wallet,
+                  color: Color(0xFF4CAF50),
+                ),
                 filled: true,
                 fillColor: Colors.white,
                 border: OutlineInputBorder(
@@ -334,12 +318,50 @@ class _PaymentPageState extends State<PaymentPage> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF4CAF50), width: 2),
+                  borderSide:
+                      const BorderSide(color: Color(0xFF4CAF50), width: 2),
                 ),
               ),
             ),
 
-            SizedBox(height: w * 0.08),
+            SizedBox(height: w * 0.06),
+
+            // Status banner while processing
+            if (_isProcessing && _statusMessage.isNotEmpty) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF4CAF50)),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF4CAF50),
+                        strokeWidth: 2,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _statusMessage,
+                        style: const TextStyle(
+                          color: Color(0xFF2E7D32),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: w * 0.04),
+            ],
 
             // Pay button
             SizedBox(
@@ -387,6 +409,8 @@ class _PaymentPageState extends State<PaymentPage> {
                       ),
               ),
             ),
+
+            SizedBox(height: w * 0.04),
           ],
         ),
       ),

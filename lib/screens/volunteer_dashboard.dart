@@ -144,15 +144,75 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: SupabaseService.getUserCampaignsStream(userId),
       builder: (context, snapshot) {
-        int activeEvents = 0, totalLikes = 0, totalComments = 0;
+        int activeEvents = 0, totalLikes = 0, totalComments = 0, totalEvents = 0;
 
         if (snapshot.hasData) {
+          final now = DateTime.now();
+          
           for (var data in snapshot.data!) {
-            if (data['status'] == 'active' || data['status'] == 'pending') {
+            // Check if event is in the future
+            bool isFutureEvent = false;
+            try {
+              final dateStr = data['date'] as String?;
+              final timeStr = data['time'] as String?;
+              
+              if (dateStr != null && timeStr != null) {
+                // Parse date
+                DateTime? eventDate;
+                if (RegExp(r'^\d{4}-\d{2}-\d{2}').hasMatch(dateStr)) {
+                  eventDate = DateTime.tryParse(dateStr);
+                } else {
+                  final months = {'january': 1, 'february': 2, 'march': 3, 'april': 4, 'may': 5, 'june': 6, 'july': 7, 'august': 8, 'september': 9, 'october': 10, 'november': 11, 'december': 12};
+                  final regex = RegExp(r'(\w+)\s+(\d{1,2}),?\s+(\d{4})', caseSensitive: false);
+                  final match = regex.firstMatch(dateStr);
+                  if (match != null) {
+                    final month = months[match.group(1)!.toLowerCase()];
+                    final day = int.tryParse(match.group(2)!);
+                    final year = int.tryParse(match.group(3)!);
+                    if (month != null && day != null && year != null) {
+                      eventDate = DateTime(year, month, day);
+                    }
+                  }
+                }
+                
+                if (eventDate != null) {
+                  // Parse time
+                  int? hour, minute;
+                  final ampmRegex = RegExp(r'(\d{1,2}):(\d{2})\s*(am|pm)', caseSensitive: false);
+                  final ampmMatch = ampmRegex.firstMatch(timeStr);
+                  if (ampmMatch != null) {
+                    hour = int.tryParse(ampmMatch.group(1)!);
+                    minute = int.tryParse(ampmMatch.group(2)!);
+                    final period = ampmMatch.group(3)!.toLowerCase();
+                    if (hour != null && minute != null) {
+                      if (period == 'pm' && hour != 12) hour += 12;
+                      if (period == 'am' && hour == 12) hour = 0;
+                    }
+                  } else {
+                    final parts = timeStr.split(':');
+                    if (parts.length >= 2) {
+                      hour = int.tryParse(parts[0]);
+                      minute = int.tryParse(parts[1]);
+                    }
+                  }
+                  
+                  if (hour != null && minute != null) {
+                    final eventDateTime = DateTime(eventDate.year, eventDate.month, eventDate.day, hour, minute);
+                    isFutureEvent = eventDateTime.isAfter(now);
+                  } else {
+                    isFutureEvent = eventDate.isAfter(DateTime(now.year, now.month, now.day));
+                  }
+                }
+              }
+            } catch (_) {}
+            
+            // Only count if it's a future event
+            if (isFutureEvent) {
               activeEvents++;
+              totalEvents++;
+              totalLikes += (data['likes'] as int?) ?? 0;
+              totalComments += ((data['comments'] as List?)?.length ?? 0);
             }
-            totalLikes += (data['likes'] as int?) ?? 0;
-            totalComments += ((data['comments'] as List?)?.length ?? 0);
           }
         }
 
@@ -184,7 +244,7 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
             ),
             _buildStatCard(
               'Events Posted',
-              '${snapshot.data?.length ?? 0}',
+              '$totalEvents',
               Icons.post_add,
               Colors.purple,
             ),
@@ -263,12 +323,85 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
           builder: (context, snapshot) {
             if (!snapshot.hasData) return const CircularProgressIndicator();
 
-            final events = snapshot.data!
-                .where(
-                  (e) => e['status'] == 'active' || e['status'] == 'pending',
-                )
-                .take(3)
-                .toList();
+            // Filter only upcoming events (future date/time)
+            final now = DateTime.now();
+            final events = snapshot.data!.where((e) {
+              try {
+                final dateStr = e['date'] as String?;
+                final timeStr = e['time'] as String?;
+                if (dateStr == null || timeStr == null) return false;
+
+                // Parse date
+                DateTime? eventDate;
+                if (RegExp(r'^\d{4}-\d{2}-\d{2}').hasMatch(dateStr)) {
+                  eventDate = DateTime.tryParse(dateStr);
+                } else {
+                  final months = {'january': 1, 'february': 2, 'march': 3, 'april': 4, 'may': 5, 'june': 6, 'july': 7, 'august': 8, 'september': 9, 'october': 10, 'november': 11, 'december': 12};
+                  final regex = RegExp(r'(\w+)\s+(\d{1,2}),?\s+(\d{4})', caseSensitive: false);
+                  final match = regex.firstMatch(dateStr);
+                  if (match != null) {
+                    final month = months[match.group(1)!.toLowerCase()];
+                    final day = int.tryParse(match.group(2)!);
+                    final year = int.tryParse(match.group(3)!);
+                    if (month != null && day != null && year != null) {
+                      eventDate = DateTime(year, month, day);
+                    }
+                  }
+                }
+                if (eventDate == null) return false;
+
+                // Parse time
+                int? hour, minute;
+                final ampmRegex = RegExp(r'(\d{1,2}):(\d{2})\s*(am|pm)', caseSensitive: false);
+                final ampmMatch = ampmRegex.firstMatch(timeStr);
+                if (ampmMatch != null) {
+                  hour = int.tryParse(ampmMatch.group(1)!);
+                  minute = int.tryParse(ampmMatch.group(2)!);
+                  final period = ampmMatch.group(3)!.toLowerCase();
+                  if (hour != null && minute != null) {
+                    if (period == 'pm' && hour != 12) hour += 12;
+                    if (period == 'am' && hour == 12) hour = 0;
+                  }
+                } else {
+                  final parts = timeStr.split(':');
+                  if (parts.length >= 2) {
+                    hour = int.tryParse(parts[0]);
+                    minute = int.tryParse(parts[1]);
+                  }
+                }
+
+                if (hour != null && minute != null) {
+                  final eventDateTime = DateTime(eventDate.year, eventDate.month, eventDate.day, hour, minute);
+                  return eventDateTime.isAfter(now);
+                }
+                return eventDate.isAfter(DateTime(now.year, now.month, now.day));
+              } catch (_) {
+                return false;
+              }
+            }).take(3).toList();
+
+            if (events.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Text(
+                    'No upcoming events',
+                    style: TextStyle(fontSize: 14, color: Colors.black45),
+                  ),
+                ),
+              );
+            }
 
             return ListView.builder(
               shrinkWrap: true,
@@ -386,9 +519,82 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
               );
             }
 
-            final recent = snapshot.data!.take(5).toList();
+            // Filter only upcoming/active events
+            final now = DateTime.now();
+            final recentUpcoming = snapshot.data!.where((event) {
+              try {
+                final dateStr = event['date'] as String?;
+                final timeStr = event['time'] as String?;
+                if (dateStr == null || timeStr == null) return false;
+
+                // Parse date
+                DateTime? eventDate;
+                if (RegExp(r'^\d{4}-\d{2}-\d{2}').hasMatch(dateStr)) {
+                  eventDate = DateTime.tryParse(dateStr);
+                } else {
+                  final months = {'january': 1, 'february': 2, 'march': 3, 'april': 4, 'may': 5, 'june': 6, 'july': 7, 'august': 8, 'september': 9, 'october': 10, 'november': 11, 'december': 12};
+                  final regex = RegExp(r'(\w+)\s+(\d{1,2}),?\s+(\d{4})', caseSensitive: false);
+                  final match = regex.firstMatch(dateStr);
+                  if (match != null) {
+                    final month = months[match.group(1)!.toLowerCase()];
+                    final day = int.tryParse(match.group(2)!);
+                    final year = int.tryParse(match.group(3)!);
+                    if (month != null && day != null && year != null) {
+                      eventDate = DateTime(year, month, day);
+                    }
+                  }
+                }
+                if (eventDate == null) return false;
+
+                // Parse time
+                int? hour, minute;
+                final ampmRegex = RegExp(r'(\d{1,2}):(\d{2})\s*(am|pm)', caseSensitive: false);
+                final ampmMatch = ampmRegex.firstMatch(timeStr);
+                if (ampmMatch != null) {
+                  hour = int.tryParse(ampmMatch.group(1)!);
+                  minute = int.tryParse(ampmMatch.group(2)!);
+                  final period = ampmMatch.group(3)!.toLowerCase();
+                  if (hour != null && minute != null) {
+                    if (period == 'pm' && hour != 12) hour += 12;
+                    if (period == 'am' && hour == 12) hour = 0;
+                  }
+                } else {
+                  final parts = timeStr.split(':');
+                  if (parts.length >= 2) {
+                    hour = int.tryParse(parts[0]);
+                    minute = int.tryParse(parts[1]);
+                  }
+                }
+
+                if (hour != null && minute != null) {
+                  final eventDateTime = DateTime(eventDate.year, eventDate.month, eventDate.day, hour, minute);
+                  return eventDateTime.isAfter(now);
+                }
+                return eventDate.isAfter(DateTime(now.year, now.month, now.day));
+              } catch (_) {
+                return false;
+              }
+            }).take(5).toList();
+
+            if (recentUpcoming.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+                ),
+                child: const Center(
+                  child: Text(
+                    'No upcoming activities',
+                    style: TextStyle(fontSize: 13, color: Colors.black38),
+                  ),
+                ),
+              );
+            }
+
             return Column(
-              children: recent.map((event) {
+              children: recentUpcoming.map((event) {
                 final location = event['location'] ?? 'Unknown location';
                 final status = event['status'] ?? 'pending';
                 final timeAgo = _getTimeAgo(event['createdAt']);
@@ -533,11 +739,93 @@ class _VolunteerDashboardState extends State<VolunteerDashboard>
           );
         }
 
+        // Filter only upcoming events
+        final now = DateTime.now();
+        final upcomingEvents = snapshot.data!.where((event) {
+          try {
+            final dateStr = event['date'] as String?;
+            final timeStr = event['time'] as String?;
+            if (dateStr == null || timeStr == null) return false;
+
+            // Parse date
+            DateTime? eventDate;
+            if (RegExp(r'^\d{4}-\d{2}-\d{2}').hasMatch(dateStr)) {
+              eventDate = DateTime.tryParse(dateStr);
+            } else {
+              final months = {'january': 1, 'february': 2, 'march': 3, 'april': 4, 'may': 5, 'june': 6, 'july': 7, 'august': 8, 'september': 9, 'october': 10, 'november': 11, 'december': 12};
+              final regex = RegExp(r'(\w+)\s+(\d{1,2}),?\s+(\d{4})', caseSensitive: false);
+              final match = regex.firstMatch(dateStr);
+              if (match != null) {
+                final month = months[match.group(1)!.toLowerCase()];
+                final day = int.tryParse(match.group(2)!);
+                final year = int.tryParse(match.group(3)!);
+                if (month != null && day != null && year != null) {
+                  eventDate = DateTime(year, month, day);
+                }
+              }
+            }
+            if (eventDate == null) return false;
+
+            // Parse time
+            int? hour, minute;
+            final ampmRegex = RegExp(r'(\d{1,2}):(\d{2})\s*(am|pm)', caseSensitive: false);
+            final ampmMatch = ampmRegex.firstMatch(timeStr);
+            if (ampmMatch != null) {
+              hour = int.tryParse(ampmMatch.group(1)!);
+              minute = int.tryParse(ampmMatch.group(2)!);
+              final period = ampmMatch.group(3)!.toLowerCase();
+              if (hour != null && minute != null) {
+                if (period == 'pm' && hour != 12) hour += 12;
+                if (period == 'am' && hour == 12) hour = 0;
+              }
+            } else {
+              final parts = timeStr.split(':');
+              if (parts.length >= 2) {
+                hour = int.tryParse(parts[0]);
+                minute = int.tryParse(parts[1]);
+              }
+            }
+
+            if (hour != null && minute != null) {
+              final eventDateTime = DateTime(eventDate.year, eventDate.month, eventDate.day, hour, minute);
+              return eventDateTime.isAfter(now);
+            }
+            return eventDate.isAfter(DateTime(now.year, now.month, now.day));
+          } catch (_) {
+            return false;
+          }
+        }).toList();
+
+        if (upcomingEvents.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.event_busy, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                Text(
+                  'No upcoming events',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'All events have concluded',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                ),
+              ],
+            ),
+          );
+        }
+
         return ListView.builder(
           padding: const EdgeInsets.all(16),
-          itemCount: snapshot.data!.length,
+          itemCount: upcomingEvents.length,
           itemBuilder: (context, index) {
-            final data = snapshot.data![index];
+            final data = upcomingEvents[index];
             final id = data['id'] as String;
             return _buildDetailedEventCard(id, data);
           },

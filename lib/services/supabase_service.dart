@@ -506,6 +506,93 @@ class SupabaseService {
         .order('created_at', ascending: false);
   }
 
+  /// Get upcoming patrol count (for notifications badge)
+  static Future<int> getUpcomingPatrolCount() async {
+    try {
+      final patrols = await client
+          .from('patrol_schedule')
+          .select()
+          .order('created_at', ascending: false);
+      
+      final now = DateTime.now();
+      int count = 0;
+      
+      for (var patrol in patrols) {
+        try {
+          final dateStr = patrol['date'] as String?;
+          final timeStr = patrol['time'] as String?;
+          
+          if (dateStr == null || timeStr == null) continue;
+          
+          // Parse date
+          DateTime? patrolDate;
+          try {
+            patrolDate = DateTime.parse(dateStr);
+          } catch (_) {
+            final months = {
+              'January': 1, 'February': 2, 'March': 3, 'April': 4,
+              'May': 5, 'June': 6, 'July': 7, 'August': 8,
+              'September': 9, 'October': 10, 'November': 11, 'December': 12
+            };
+            
+            final parts = dateStr.split(' ');
+            if (parts.length >= 3) {
+              final month = months[parts[0]];
+              final day = int.tryParse(parts[1].replaceAll(',', ''));
+              final year = int.tryParse(parts[2]);
+              
+              if (month != null && day != null && year != null) {
+                patrolDate = DateTime(year, month, day);
+              }
+            }
+          }
+          
+          if (patrolDate == null) continue;
+          
+          // Parse time
+          int hour = 0;
+          int minute = 0;
+          
+          if (timeStr.contains('PM') || timeStr.contains('AM')) {
+            final isPM = timeStr.contains('PM');
+            final cleanTime = timeStr.replaceAll(RegExp(r'[APM ]'), '');
+            final timeParts = cleanTime.split(':');
+            if (timeParts.length >= 2) {
+              hour = int.tryParse(timeParts[0]) ?? 0;
+              minute = int.tryParse(timeParts[1]) ?? 0;
+              if (isPM && hour != 12) hour += 12;
+              if (!isPM && hour == 12) hour = 0;
+            }
+          } else {
+            final timeParts = timeStr.split(':');
+            if (timeParts.length >= 2) {
+              hour = int.tryParse(timeParts[0]) ?? 0;
+              minute = int.tryParse(timeParts[1]) ?? 0;
+            }
+          }
+          
+          final patrolDateTime = DateTime(
+            patrolDate.year,
+            patrolDate.month,
+            patrolDate.day,
+            hour,
+            minute,
+          );
+          
+          if (patrolDateTime.isAfter(now)) {
+            count++;
+          }
+        } catch (_) {
+          continue;
+        }
+      }
+      
+      return count;
+    } catch (e) {
+      return 0;
+    }
+  }
+
   /// Delete patrol schedule
   static Future<void> deletePatrolSchedule(String scheduleId) async {
     await client.from('patrol_schedule').delete().eq('id', scheduleId);
@@ -630,6 +717,51 @@ class SupabaseService {
   /// Delete scheduled post
   static Future<void> deleteScheduledPost(String postId) async {
     await client.from('scheduled_posts').delete().eq('id', postId);
+  }
+
+  // ============ POINTS SYSTEM ============
+
+  /// Award points to user
+  static Future<void> awardPoints(String userId, int points, String reason) async {
+    try {
+      // Get current user profile
+      final profile = await getUserProfile(userId);
+      final currentPoints = profile?['points'] ?? 0;
+      
+      // Update points
+      await updateUserProfile(userId, {
+        'points': currentPoints + points,
+      });
+      
+      // Log the points transaction
+      await client.from('points_history').insert({
+        'user_id': userId,
+        'points': points,
+        'reason': reason,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      throw Exception('Failed to award points: $e');
+    }
+  }
+
+  /// Get user points
+  static Future<int> getUserPoints(String userId) async {
+    try {
+      final profile = await getUserProfile(userId);
+      return profile?['points'] ?? 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  /// Get points history stream
+  static Stream<List<Map<String, dynamic>>> getPointsHistoryStream(String userId) {
+    return client
+        .from('points_history')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', userId)
+        .order('created_at', ascending: false);
   }
 
   // ============ TWO-FACTOR AUTHENTICATION ============

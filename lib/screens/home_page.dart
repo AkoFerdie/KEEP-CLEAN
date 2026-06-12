@@ -46,18 +46,34 @@ class _HomePageState extends State<HomePage> {
     _loadLastSeenCount();
     NotificationService.init();
     int previousPatrolCount = -1;
-    SupabaseService.getPatrolScheduleStream().listen((data) {
+    SupabaseService.getPatrolScheduleStream().listen((data) async {
       if (mounted) {
-        if (previousPatrolCount >= 0 && data.length > previousPatrolCount) {
-          final newest = data.first;
-          NotificationService.showPatrolNotification(
-            location: newest['location'] ?? 'Unknown',
-            date: newest['date'] ?? '',
-            time: newest['time'] ?? '',
-          );
+        // Calculate upcoming patrol count
+        final upcomingCount = await SupabaseService.getUpcomingPatrolCount();
+        
+        if (previousPatrolCount >= 0 && upcomingCount > previousPatrolCount) {
+          // Find the newest patrol that's in the future
+          final now = DateTime.now();
+          for (var patrol in data) {
+            try {
+              final dateStr = patrol['date'] as String?;
+              final timeStr = patrol['time'] as String?;
+              if (dateStr == null || timeStr == null) continue;
+              
+              // Basic future check (you can add full parsing here if needed)
+              NotificationService.showPatrolNotification(
+                location: patrol['location'] ?? 'Unknown',
+                date: dateStr,
+                time: timeStr,
+              );
+              break; // Show notification for first upcoming patrol
+            } catch (_) {
+              continue;
+            }
+          }
         }
-        previousPatrolCount = data.length;
-        setState(() => _patrolCount = data.length);
+        previousPatrolCount = upcomingCount;
+        setState(() => _patrolCount = upcomingCount);
       }
     });
   }
@@ -642,7 +658,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildCurrentPage() {
     switch (_currentIndex) {
       case 0:
-        return const _HomeContent();
+        return _HomeContent(onJoinEvent: () => setState(() => _currentIndex = 1));
 
       case 1:
         return const EngagePage();
@@ -694,7 +710,8 @@ class _HomePageState extends State<HomePage> {
 
 // ------------------ HOME CONTENT ------------------
 class _HomeContent extends StatelessWidget {
-  const _HomeContent();
+  final VoidCallback? onJoinEvent;
+  const _HomeContent({this.onJoinEvent});
 
   String _extractFirstNameFromFullName(String fullName) {
     final clean = fullName.trim();
@@ -868,7 +885,7 @@ class _HomeContent extends StatelessWidget {
                   Icons.campaign_outlined,
                   "Join\nEvent",
                   const Color(0xFF1E88E5),
-                  null,
+                  onJoinEvent,
                 ),
                 SizedBox(width: w * 0.03),
                 _buildQuickAction(
@@ -947,41 +964,20 @@ class _HomeContent extends StatelessWidget {
                                       .maybeSingle();
 
                                   if (userData != null) {
-                                    final role = userData['role'] ?? 'user';
+                                    final role = (userData['role'] ?? 'user').toString().toLowerCase().trim();
 
                                     print('User role from database: $role');
 
                                     Widget targetDashboard;
-                                    switch (role.toLowerCase().trim()) {
-                                      case 'hysacam':
-                                      case 'hysacam worker':
-                                      case 'cleanup organization':
-                                      case 'government company (hysacam)':
-                                      case 'admin':
-                                        print(
-                                          'Navigating to Hysacam Dashboard',
-                                        );
-                                        targetDashboard =
-                                            const HysacamDashboard();
-                                        break;
-                                      case 'volunteer':
-                                      case 'volunteers':
-                                      case 'organization / volunteer':
-                                        print(
-                                          'Navigating to Volunteer Dashboard',
-                                        );
-                                        targetDashboard =
-                                            const VolunteerDashboard();
-                                        break;
-                                      case 'user':
-                                      case 'users':
-                                      default:
-                                        print(
-                                          'Navigating to User Dashboard (default)',
-                                        );
-                                        targetDashboard =
-                                            const DashboardScreen();
-                                        break;
+                                    if (role.contains('hysacam') || role.contains('cleanup') || role == 'admin') {
+                                      print('Navigating to Hysacam Dashboard');
+                                      targetDashboard = const HysacamDashboard();
+                                    } else if (role.contains('volunteer') || role.contains('organization')) {
+                                      print('Navigating to Volunteer Dashboard');
+                                      targetDashboard = const VolunteerDashboard();
+                                    } else {
+                                      print('Navigating to User Dashboard (default)');
+                                      targetDashboard = const DashboardScreen();
                                     }
 
                                     Navigator.push(
@@ -991,9 +987,7 @@ class _HomeContent extends StatelessWidget {
                                       ),
                                     );
                                   } else {
-                                    print(
-                                      'No user document found, defaulting to user dashboard',
-                                    );
+                                    print('No user document found, defaulting to user dashboard');
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
@@ -1056,9 +1050,62 @@ class _HomeContent extends StatelessWidget {
                   .from('campaigns')
                   .select()
                   .order('created_at', ascending: false)
-                  .limit(3)
-                  .then((data) => List<Map<String, dynamic>>.from(data))
-                  .catchError((_) => <Map<String, dynamic>>[]),
+                  .then((data) {
+                    final now = DateTime.now();
+                    final filtered = List<Map<String, dynamic>>.from(data).where((event) {
+                      try {
+                        final dateStr = event['date'] as String?;
+                        final timeStr = event['time'] as String?;
+                        if (dateStr == null || timeStr == null) return true;
+
+                        DateTime? eventDate;
+                        if (RegExp(r'^\d{4}-\d{2}-\d{2}').hasMatch(dateStr)) {
+                          eventDate = DateTime.tryParse(dateStr);
+                        } else {
+                          final months = {'january': 1, 'february': 2, 'march': 3, 'april': 4, 'may': 5, 'june': 6, 'july': 7, 'august': 8, 'september': 9, 'october': 10, 'november': 11, 'december': 12};
+                          final regex = RegExp(r'(\w+)\s+(\d{1,2}),?\s+(\d{4})', caseSensitive: false);
+                          final match = regex.firstMatch(dateStr);
+                          if (match != null) {
+                            final month = months[match.group(1)!.toLowerCase()];
+                            final day = int.tryParse(match.group(2)!);
+                            final year = int.tryParse(match.group(3)!);
+                            if (month != null && day != null && year != null) {
+                              eventDate = DateTime(year, month, day);
+                            }
+                          }
+                        }
+                        if (eventDate == null) return true;
+
+                        int? hour, minute;
+                        final ampmRegex = RegExp(r'(\d{1,2}):(\d{2})\s*(am|pm)', caseSensitive: false);
+                        final ampmMatch = ampmRegex.firstMatch(timeStr);
+                        if (ampmMatch != null) {
+                          hour = int.tryParse(ampmMatch.group(1)!);
+                          minute = int.tryParse(ampmMatch.group(2)!);
+                          final period = ampmMatch.group(3)!.toLowerCase();
+                          if (hour != null && minute != null) {
+                            if (period == 'pm' && hour != 12) hour += 12;
+                            if (period == 'am' && hour == 12) hour = 0;
+                          }
+                        } else {
+                          final parts = timeStr.split(':');
+                          if (parts.length >= 2) {
+                            hour = int.tryParse(parts[0]);
+                            minute = int.tryParse(parts[1]);
+                          }
+                        }
+
+                        if (hour != null && minute != null) {
+                          final eventDateTime = DateTime(eventDate.year, eventDate.month, eventDate.day, hour, minute);
+                          return eventDateTime.isAfter(now);
+                        }
+                        return eventDate.isAfter(DateTime(now.year, now.month, now.day));
+                      } catch (_) {
+                        return true;
+                      }
+                    }).take(3).toList();
+                    return filtered;
+                  }).catchError((_) => <Map<String, dynamic>>[]),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
@@ -1083,7 +1130,7 @@ class _HomeContent extends StatelessWidget {
                         ),
                         SizedBox(width: w * 0.03),
                         Text(
-                          "No campaigns yet. Be the first!",
+                          "No upcoming events",
                           style: TextStyle(
                             fontSize: w * 0.035,
                             color: ThemeHelper.getSecondaryTextColor(context),

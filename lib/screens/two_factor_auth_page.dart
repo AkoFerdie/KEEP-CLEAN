@@ -339,7 +339,7 @@ class _TwoFactorAuthPageState extends State<TwoFactorAuthPage> {
     );
   }
 
-  void _enable2FA() {
+  void _enable2FA() async {
     final configuredMethods = [
       _hasAuthenticatorApp,
       _hasEmailVerification,
@@ -353,7 +353,23 @@ class _TwoFactorAuthPageState extends State<TwoFactorAuthPage> {
     }
 
     setState(() => _is2FAEnabled = true);
-    _showSnack("Two-Factor Authentication enabled successfully!");
+    
+    // Award points for enabling 2FA
+    final user = SupabaseService.currentUser;
+    if (user != null) {
+      try {
+        await SupabaseService.awardPoints(
+          user.id,
+          1,
+          'Enabled Two-Factor Authentication',
+        );
+        _showSnack("🎉 Two-Factor Authentication enabled! +1 point earned!");
+      } catch (e) {
+        _showSnack("Two-Factor Authentication enabled successfully!");
+      }
+    } else {
+      _showSnack("Two-Factor Authentication enabled successfully!");
+    }
   }
 
   void _disable2FA() {

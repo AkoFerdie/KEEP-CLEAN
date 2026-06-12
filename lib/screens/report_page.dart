@@ -80,18 +80,101 @@ class _WasteRequestFeed extends StatefulWidget {
 
 class _WasteRequestFeedState extends State<_WasteRequestFeed> {
   List<Map<String, dynamic>> _docs = [];
+  List<Map<String, dynamic>> _filteredDocs = [];
   bool _loading = true;
+  final _searchController = TextEditingController();
+  String _statusFilter = 'all';
+  String _sortBy = 'recent';
 
   @override
   void initState() {
     super.initState();
     SupabaseService.getWasteRequestsStream().listen((data) {
-      if (mounted) setState(() { _docs = List<Map<String, dynamic>>.from(data); _loading = false; });
+      if (mounted) {
+        setState(() {
+          _docs = List<Map<String, dynamic>>.from(data);
+          _loading = false;
+          _applyFilters();
+        });
+      }
     });
+    _searchController.addListener(_applyFilters);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _applyFilters() {
+    var filtered = List<Map<String, dynamic>>.from(_docs);
+
+    // Date filter - hide past pickups
+    filtered = filtered.where((doc) {
+      final pickupTime = doc['pickup_time'] ?? doc['pickupTime'];
+      if (pickupTime == null) return true;
+      try {
+        DateTime? pickupDate;
+        if (pickupTime is String) {
+          if (pickupTime.contains('AM') || pickupTime.contains('PM')) {
+            final now = DateTime.now();
+            final parts = pickupTime.split(' ');
+            if (parts.length >= 2) {
+              final timePart = parts[0];
+              final isPM = parts[1].toUpperCase() == 'PM';
+              final timeComponents = timePart.split(':');
+              if (timeComponents.length == 2) {
+                var hour = int.parse(timeComponents[0]);
+                final minute = int.parse(timeComponents[1]);
+                if (isPM && hour != 12) hour += 12;
+                if (!isPM && hour == 12) hour = 0;
+                pickupDate = DateTime(now.year, now.month, now.day, hour, minute);
+              }
+            }
+          } else {
+            pickupDate = DateTime.tryParse(pickupTime);
+          }
+        }
+        return pickupDate == null || pickupDate.isAfter(DateTime.now());
+      } catch (_) {
+        return true;
+      }
+    }).toList();
+
+    // Status filter
+    if (_statusFilter != 'all') {
+      filtered = filtered.where((d) => (d['status'] ?? 'open') == _statusFilter).toList();
+    }
+
+    // Search filter
+    final query = _searchController.text.toLowerCase();
+    if (query.isNotEmpty) {
+      filtered = filtered.where((d) {
+        final location = (d['location'] ?? '').toString().toLowerCase();
+        final description = (d['description'] ?? '').toString().toLowerCase();
+        final postedBy = (d['posted_by'] ?? '').toString().toLowerCase();
+        return location.contains(query) || description.contains(query) || postedBy.contains(query);
+      }).toList();
+    }
+
+    // Sort
+    if (_sortBy == 'recent') {
+      filtered.sort((a, b) => (b['created_at'] ?? '').compareTo(a['created_at'] ?? ''));
+    } else if (_sortBy == 'amount_high') {
+      filtered.sort((a, b) => (int.tryParse(b['amount']?.toString() ?? '0') ?? 0).compareTo(int.tryParse(a['amount']?.toString() ?? '0') ?? 0));
+    } else if (_sortBy == 'amount_low') {
+      filtered.sort((a, b) => (int.tryParse(a['amount']?.toString() ?? '0') ?? 0).compareTo(int.tryParse(b['amount']?.toString() ?? '0') ?? 0));
+    }
+
+    setState(() => _filteredDocs = filtered);
   }
 
   void _onDelete(String docId) {
-    setState(() => _docs.removeWhere((d) => d['id'] == docId));
+    setState(() {
+      _docs.removeWhere((d) => d['id'] == docId);
+      _applyFilters();
+    });
   }
 
   @override
@@ -99,41 +182,136 @@ class _WasteRequestFeedState extends State<_WasteRequestFeed> {
     final w = MediaQuery.of(context).size.width;
 
     if (_loading) {
-      return const Center(
-          child: CircularProgressIndicator(color: Color(0xFF4CAF50)));
+      return const Center(child: CircularProgressIndicator(color: Color(0xFF4CAF50)));
     }
 
-    if (_docs.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.inbox_outlined,
-                size: w * 0.18, color: ThemeHelper.getSecondaryTextColor(context).withValues(alpha: 0.3)),
-            const SizedBox(height: 12),
-            Text('No waste requests yet.',
-                style: TextStyle(fontSize: w * 0.04, color: Colors.grey[700])),
-            const SizedBox(height: 6),
-            Text('Be the first to post one!',
-                style: TextStyle(fontSize: w * 0.035, color: Colors.grey[600])),
-          ],
+    return Column(
+      children: [
+        Container(
+          color: ThemeHelper.getCardColor(context),
+          padding: EdgeInsets.all(w * 0.04),
+          child: Column(
+            children: [
+              TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search location, poster...',
+                  prefixIcon: const Icon(Icons.search, color: Color(0xFF4CAF50)),
+                  suffixIcon: IconButton(
+                          icon: const Icon(Icons.clear, size: 20),
+                          onPressed: () => _searchController.clear(),
+                        ),
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: PopupMenuButton<String>(
+                      initialValue: _statusFilter,
+                      onSelected: (v) => setState(() { _statusFilter = v; _applyFilters(); }),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.filter_list, size: 18, color: Color(0xFF4CAF50)),
+                                const SizedBox(width: 6),
+                                Text(_statusFilter == 'all' ? 'All' : _statusFilter == 'open' ? 'Open' : _statusFilter == 'taken' ? 'Taken' : 'Done',
+                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                            const Icon(Icons.arrow_drop_down, size: 20),
+                          ],
+                        ),
+                      ),
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(value: 'all', child: Text('All Status')),
+                        const PopupMenuItem(value: 'open', child: Text('🔵 Open')),
+                        const PopupMenuItem(value: 'taken', child: Text('🟠 Taken')),
+                        const PopupMenuItem(value: 'done', child: Text('🟢 Done')),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: PopupMenuButton<String>(
+                      initialValue: _sortBy,
+                      onSelected: (v) => setState(() { _sortBy = v; _applyFilters(); }),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.sort, size: 18, color: Color(0xFF4CAF50)),
+                                const SizedBox(width: 6),
+                                Text(_sortBy == 'recent' ? 'Recent' : _sortBy == 'amount_high' ? 'High ₣' : 'Low ₣',
+                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                            const Icon(Icons.arrow_drop_down, size: 20),
+                          ],
+                        ),
+                      ),
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(value: 'recent', child: Text('Most Recent')),
+                        const PopupMenuItem(value: 'amount_high', child: Text('Highest Amount')),
+                        const PopupMenuItem(value: 'amount_low', child: Text('Lowest Amount')),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-      );
-    }
-
-    return ListView.builder(
-      padding: EdgeInsets.all(w * 0.04),
-      itemCount: _docs.length,
-      itemBuilder: (context, index) {
-        final data = _docs[index];
-        final docId = data['id']?.toString() ?? '';
-        if (docId.isEmpty) return const SizedBox.shrink();
-        return _WasteRequestCard(
-          data: data,
-          docId: docId,
-          onDeleted: () => _onDelete(docId),
-        );
-      },
+        Expanded(
+          child: _filteredDocs.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.inbox_outlined, size: w * 0.18, color: Colors.grey[300]),
+                      const SizedBox(height: 12),
+                      Text('No pickups found', style: TextStyle(fontSize: w * 0.04, color: Colors.grey[600])),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: EdgeInsets.all(w * 0.04),
+                  itemCount: _filteredDocs.length,
+                  itemBuilder: (context, index) {
+                    final data = _filteredDocs[index];
+                    final docId = data['id']?.toString() ?? '';
+                    if (docId.isEmpty) return const SizedBox.shrink();
+                    return _WasteRequestCard(
+                      data: data,
+                      docId: docId,
+                      onDeleted: () => _onDelete(docId),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 }
@@ -164,31 +342,39 @@ class _WasteRequestCard extends StatelessWidget {
         status == 'taken' ? 'Taken' : status == 'done' ? 'Done' : 'Open';
 
     return Container(
-      margin: EdgeInsets.only(bottom: w * 0.04),
+      margin: EdgeInsets.only(bottom: w * 0.03),
       decoration: BoxDecoration(
         color: ThemeHelper.getCardColor(context),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey[200]!, width: 1),
         boxShadow: [
-          ThemeHelper.getCardShadow(context),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Header ──
-          Padding(
-            padding: EdgeInsets.all(w * 0.04),
+          Container(
+            padding: EdgeInsets.all(w * 0.035),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.05),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+            ),
             child: Row(
               children: [
                 CircleAvatar(
-                  backgroundColor:
-                      const Color(0xFF4CAF50).withValues(alpha: 0.15),
+                  radius: 22,
+                  backgroundColor: const Color(0xFF4CAF50).withValues(alpha: 0.15),
                   backgroundImage: (data['profile_image_url'] ?? '').isNotEmpty
                       ? NetworkImage(data['profile_image_url'])
                       : null,
                   child: (data['profile_image_url'] ?? '').isEmpty
-                      ? const Icon(Icons.person,
-                          color: Color(0xFF4CAF50), size: 20)
+                      ? const Icon(Icons.person, color: Color(0xFF4CAF50), size: 20)
                       : null,
                 ),
                 SizedBox(width: w * 0.03),
@@ -199,55 +385,55 @@ class _WasteRequestCard extends StatelessWidget {
                       Text(
                         data['posted_by'] ?? 'Anonymous',
                         style: TextStyle(
-                            fontSize: w * 0.038,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey[800]),
+                            fontSize: w * 0.04,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.grey[900]),
                       ),
-                      Text(
-                        data['location'] ?? '',
-                        style: TextStyle(
-                            fontSize: w * 0.032, color: Colors.grey[700]),
-                        overflow: TextOverflow.ellipsis,
+                      Row(
+                        children: [
+                          Icon(Icons.location_on, size: 13, color: Colors.grey[600]),
+                          const SizedBox(width: 3),
+                          Expanded(
+                            child: Text(
+                              data['location'] ?? '',
+                              style: TextStyle(fontSize: w * 0.032, color: Colors.grey[700]),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.12),
+                    color: statusColor,
                     borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: statusColor.withValues(alpha: 0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  child: status == 'open' && data['created_by'] != currentUser?.id
-                      ? GestureDetector(
-                          onTap: () => _showAcceptDialog(context, docId, data),
-                          child: Text(
-                            statusLabel,
-                            style: TextStyle(
-                                fontSize: w * 0.03,
-                                color: statusColor,
-                                fontWeight: FontWeight.w700,
-                                decoration: TextDecoration.underline),
-                          ),
-                        )
-                      : Text(
-                          statusLabel,
-                          style: TextStyle(
-                              fontSize: w * 0.03,
-                              color: statusColor,
-                              fontWeight: FontWeight.w700),
-                        ),
+                  child: Text(
+                    statusLabel,
+                    style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5),
+                  ),
                 ),
-                if (data['created_by'] == currentUser?.id) ...
-                  [
-                    const SizedBox(width: 6),
-                    GestureDetector(
-                      onTap: () => _confirmDelete(context, docId),
-                      child: const Icon(Icons.delete_outline,
-                          color: Colors.redAccent, size: 20),
-                    ),
-                  ],
+                if (data['created_by'] == currentUser?.id) ...[
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => _confirmDelete(context, docId),
+                    child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 22),
+                  ),
+                ],
               ],
             ),
           ),
@@ -258,49 +444,56 @@ class _WasteRequestCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if ((data['description'] ?? '').isNotEmpty)
+                // Info chips row (moved to top)
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: _infoChipCompact(Icons.access_time, _formatPickupTime(data['pickupTime']), w),
+                      ),
+                      Container(width: 1, height: 30, color: Colors.grey[300]),
+                      Expanded(
+                        child: _infoChipCompact(Icons.account_balance_wallet, '${data['amount']} FCFA', w, color: const Color(0xFF2E7D32)),
+                      ),
+                    ],
+                  ),
+                ),
+                if ((data['description'] ?? '').isNotEmpty) ...[
+                  SizedBox(height: w * 0.03),
                   Text(
                     data['description'],
-                    style: TextStyle(
-                        fontSize: w * 0.036, color: Colors.grey[800], height: 1.4),
+                    style: TextStyle(fontSize: w * 0.035, color: Colors.grey[700], height: 1.5),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                ],
+
                 SizedBox(height: w * 0.03),
 
-                // Info chips row
-                Wrap(
-                  spacing: w * 0.02,
-                  runSpacing: w * 0.02,
-                  children: [
-                    _infoChip(Icons.access_time_outlined,
-                        _formatPickupTime(data['pickupTime']), w),
-                    _infoChip(Icons.phone_outlined,
-                        data['phone'] ?? 'N/A', w),
-                    _infoChip(Icons.account_balance_wallet_outlined,
-                        '${data['amount'] ?? '0'} FCFA', w,
-                        color: const Color(0xFF2E7D32)),
-                  ],
-                ),
-
-                SizedBox(height: w * 0.04),
-
-                // ── Waste Image (before action button) ──
+                // ── Waste Image ──
                 if (imageUrls.isNotEmpty)
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                     child: Image.network(
                       imageUrls[0],
                       width: double.infinity,
-                      fit: BoxFit.fitWidth,
+                      height: w * 0.45,
+                      fit: BoxFit.cover,
                       errorBuilder: (_, _, _) => Container(
-                        height: w * 0.4,
-                        color: Colors.grey.shade100,
-                        child: const Icon(Icons.broken_image_outlined,
-                            color: Colors.black26, size: 40),
+                        height: w * 0.45,
+                        color: Colors.grey[200],
+                        child: const Icon(Icons.broken_image_outlined, color: Colors.grey, size: 40),
                       ),
                     ),
                   ),
 
-                if (imageUrls.isNotEmpty) SizedBox(height: w * 0.04),
+                if (imageUrls.isNotEmpty) SizedBox(height: w * 0.03),
 
                 // ── Action button ──
                 if (status == 'open' &&
@@ -392,28 +585,20 @@ class _WasteRequestCard extends StatelessWidget {
     return value.toString();
   }
 
-  Widget _infoChip(IconData icon, String label, double w,
-      {Color color = const Color(0xFF4CAF50)}) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-          horizontal: w * 0.025, vertical: w * 0.015),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: w * 0.035, color: color),
-          SizedBox(width: w * 0.015),
-          Text(label,
-              style: TextStyle(
-                  fontSize: w * 0.03,
-                  color: color,
-                  fontWeight: FontWeight.w600)),
-        ],
-      ),
+  Widget _infoChipCompact(IconData icon, String label, double w, {Color color = const Color(0xFF4CAF50)}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            label,
+            style: TextStyle(fontSize: w * 0.03, color: color, fontWeight: FontWeight.w700),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 

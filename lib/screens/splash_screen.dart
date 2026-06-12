@@ -41,35 +41,45 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
 
     _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 700),
+      duration: const Duration(milliseconds: 800),
       vsync: this,
     );
     _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 650),
+      duration: const Duration(milliseconds: 900),
       vsync: this,
     );
     _slideController = AnimationController(
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 700),
       vsync: this,
     );
     _rotateController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 3000),
       vsync: this,
     );
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
     );
-    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(parent: _scaleController, curve: Curves.elasticOut),
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.easeOutCubic),
     );
     _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero).animate(
-          CurvedAnimation(parent: _slideController, curve: Curves.easeOutBack),
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOut),
         );
     _rotateAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _rotateController, curve: Curves.linear),
     );
+
+    // Start animations immediately with slight delay for smoother feel
+    Future.delayed(const Duration(milliseconds: 50), () {
+      if (!_disposed) {
+        _fadeController.forward();
+        _scaleController.forward();
+        _slideController.forward();
+        _rotateController.repeat();
+      }
+    });
   }
 
   @override
@@ -82,9 +92,6 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _prepareSplash() async {
     _isPreparingAssets = true;
-
-    // Start animations immediately — don't wait for anything
-    _startAnimations();
 
     // Listen for OAuth sign-in redirect
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
@@ -171,19 +178,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  Future<void> _startAnimations() async {
-    await Future.delayed(const Duration(milliseconds: 100));
-    if (_disposed) return;
-    _fadeController.forward();
-    await Future.delayed(const Duration(milliseconds: 150));
-    if (_disposed) return;
-    _scaleController.forward();
-    await Future.delayed(const Duration(milliseconds: 100));
-    if (_disposed) return;
-    _slideController.forward();
-    if (_disposed) return;
-    _rotateController.repeat();
-  }
+
 
   Future<void> _navigateToGettingStarted() async {
     if (!mounted || _hasNavigated) return;
@@ -248,6 +243,27 @@ class _SplashScreenState extends State<SplashScreen>
           ),
           child: Stack(
             children: [
+              // More decorative circles for depth
+              Positioned(
+                top: -20,
+                left: -40,
+                child: AnimatedBuilder(
+                  animation: _rotateAnimation,
+                  builder: (context, child) {
+                    return Transform.rotate(
+                      angle: -_rotateAnimation.value * 2 * 3.14159,
+                      child: Container(
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.05),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
               Positioned(
                 top: 100,
                 right: -50,
@@ -261,7 +277,27 @@ class _SplashScreenState extends State<SplashScreen>
                         height: 150,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.1),
+                          color: Colors.white.withValues(alpha: 0.08),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Positioned(
+                bottom: 100,
+                right: 20,
+                child: AnimatedBuilder(
+                  animation: _rotateAnimation,
+                  builder: (context, child) {
+                    return Transform.rotate(
+                      angle: _rotateAnimation.value * 2 * 3.14159,
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.06),
                         ),
                       ),
                     );
@@ -281,7 +317,7 @@ class _SplashScreenState extends State<SplashScreen>
                         height: 100,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.08),
+                          color: Colors.white.withValues(alpha: 0.07),
                         ),
                       ),
                     );
@@ -302,109 +338,125 @@ class _SplashScreenState extends State<SplashScreen>
                           SizedBox(
                             height: MediaQuery.of(context).size.height * 0.15,
                           ),
-                          ScaleTransition(
-                            scale: _scaleAnimation,
-                            child: AnimatedOpacity(
-                              opacity: _assetsReady ? 1 : 0,
-                              duration: const Duration(milliseconds: 150),
-                              child: Container(
-                                width: 140,
-                                height: 140,
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(30),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.2),
-                                      spreadRadius: 3,
-                                      blurRadius: 15,
-                                      offset: const Offset(0, 5),
+                          FutureBuilder(
+                            future: precacheImage(
+                              const AssetImage('assets/front_logo.png'),
+                              context,
+                            ),
+                            builder: (context, snapshot) {
+                              return ScaleTransition(
+                                scale: _scaleAnimation,
+                                child: Container(
+                                  width: 150,
+                                  height: 150,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(35),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.15),
+                                        spreadRadius: 0,
+                                        blurRadius: 30,
+                                        offset: const Offset(0, 10),
+                                      ),
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.1),
+                                        spreadRadius: 0,
+                                        blurRadius: 15,
+                                        offset: const Offset(0, 5),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(20),
+                                    child: Image.asset(
+                                      'assets/front_logo.png',
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (context, error, stackTrace) =>
+                                          const Icon(
+                                            Icons.eco,
+                                            size: 80,
+                                            color: Color(0xFF4CAF50),
+                                          ),
                                     ),
-                                  ],
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Image(
-                                    image: _logoImage,
-                                    fit: BoxFit.contain,
-                                    gaplessPlayback: true,
-                                    errorBuilder: (context, error, stackTrace) =>
-                                        const Icon(
-                                          Icons.eco,
-                                          size: 80,
-                                          color: Color(0xFF4CAF50),
-                                        ),
                                   ),
                                 ),
-                              ),
-                            ),
+                              );
+                            },
                           ),
-                          const SizedBox(height: 50),
+                          const SizedBox(height: 60),
                           SlideTransition(
                             position: _slideAnimation,
                             child: const Text(
                               'Keep It Clean',
+                              textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 42,
-                                fontWeight: FontWeight.w800,
+                                fontSize: 48,
+                                fontWeight: FontWeight.w900,
                                 color: Colors.white,
-                                letterSpacing: 2.0,
+                                letterSpacing: 1.5,
+                                height: 1.2,
                                 shadows: [
                                   Shadow(
-                                    offset: Offset(0, 3),
-                                    blurRadius: 8,
+                                    offset: Offset(0, 4),
+                                    blurRadius: 12,
                                     color: Colors.black26,
                                   ),
                                 ],
                               ),
                             ),
                           ),
-                          const SizedBox(height: 15),
+                          const SizedBox(height: 18),
                           SlideTransition(
                             position: _slideAnimation,
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 8,
+                                horizontal: 24,
+                                vertical: 10,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(20),
+                                color: Colors.white.withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(25),
                                 border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.3),
-                                  width: 1,
+                                  color: Colors.white.withValues(alpha: 0.35),
+                                  width: 1.5,
                                 ),
                               ),
                               child: const Text(
                                 'Waste Solutions at Your Fingertips',
+                                textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  fontSize: 16,
+                                  fontSize: 15,
                                   color: Colors.white,
-                                  fontWeight: FontWeight.w500,
-                                  letterSpacing: 0.8,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.5,
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(height: 80),
+                          const SizedBox(height: 90),
                           SlideTransition(
                             position: _slideAnimation,
                             child: Column(
                               children: [
                                 Container(
-                                  width: 50,
-                                  height: 50,
+                                  width: 56,
+                                  height: 56,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: Colors.white.withValues(alpha: 0.2),
+                                    color: Colors.white.withValues(alpha: 0.15),
+                                    border: Border.all(
+                                      color: Colors.white.withValues(alpha: 0.25),
+                                      width: 2,
+                                    ),
                                   ),
                                   child: const Center(
                                     child: SizedBox(
-                                      width: 30,
-                                      height: 30,
+                                      width: 28,
+                                      height: 28,
                                       child: CircularProgressIndicator(
                                         color: Colors.white,
-                                        strokeWidth: 3,
+                                        strokeWidth: 2.5,
                                       ),
                                     ),
                                   ),
@@ -413,10 +465,10 @@ class _SplashScreenState extends State<SplashScreen>
                                 const Text(
                                   'Loading...',
                                   style: TextStyle(
-                                    fontSize: 16,
+                                    fontSize: 15,
                                     color: Colors.white70,
-                                    fontWeight: FontWeight.w400,
-                                    letterSpacing: 1.0,
+                                    fontWeight: FontWeight.w500,
+                                    letterSpacing: 1.2,
                                   ),
                                 ),
                               ],

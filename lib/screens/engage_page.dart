@@ -308,11 +308,106 @@ class _EngagePageState extends State<EngagePage> with TickerProviderStateMixin {
           );
         }
 
+        // Filter out past events
+        final now = DateTime.now();
+        final upcomingEvents = snapshot.data!.where((event) {
+          try {
+            final dateStr = event['date'] as String?;
+            final timeStr = event['time'] as String?;
+            
+            if (dateStr == null || timeStr == null) return false;
+            
+            // Parse date
+            DateTime? eventDate;
+            try {
+              eventDate = DateTime.parse(dateStr);
+            } catch (_) {
+              final months = {
+                'January': 1, 'February': 2, 'March': 3, 'April': 4,
+                'May': 5, 'June': 6, 'July': 7, 'August': 8,
+                'September': 9, 'October': 10, 'November': 11, 'December': 12
+              };
+              
+              final parts = dateStr.split(' ');
+              if (parts.length >= 3) {
+                final month = months[parts[0]];
+                final day = int.tryParse(parts[1].replaceAll(',', ''));
+                final year = int.tryParse(parts[2]);
+                
+                if (month != null && day != null && year != null) {
+                  eventDate = DateTime(year, month, day);
+                }
+              }
+            }
+            
+            if (eventDate == null) return false;
+            
+            // Parse time
+            int hour = 0;
+            int minute = 0;
+            
+            if (timeStr.contains('PM') || timeStr.contains('AM')) {
+              final isPM = timeStr.contains('PM');
+              final cleanTime = timeStr.replaceAll(RegExp(r'[APM ]'), '');
+              final timeParts = cleanTime.split(':');
+              if (timeParts.length >= 2) {
+                hour = int.tryParse(timeParts[0]) ?? 0;
+                minute = int.tryParse(timeParts[1]) ?? 0;
+                if (isPM && hour != 12) hour += 12;
+                if (!isPM && hour == 12) hour = 0;
+              }
+            } else {
+              final timeParts = timeStr.split(':');
+              if (timeParts.length >= 2) {
+                hour = int.tryParse(timeParts[0]) ?? 0;
+                minute = int.tryParse(timeParts[1]) ?? 0;
+              }
+            }
+            
+            final eventDateTime = DateTime(
+              eventDate.year,
+              eventDate.month,
+              eventDate.day,
+              hour,
+              minute,
+            );
+            
+            return eventDateTime.isAfter(now);
+          } catch (e) {
+            return false;
+          }
+        }).toList();
+
+        if (upcomingEvents.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.check_circle_outline, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                Text(
+                  'No upcoming events',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'All events have concluded',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                ),
+              ],
+            ),
+          );
+        }
+
         return ListView.builder(
           padding: const EdgeInsets.all(16),
-          itemCount: snapshot.data!.length,
+          itemCount: upcomingEvents.length,
           itemBuilder: (context, index) {
-            final data = snapshot.data![index];
+            final data = upcomingEvents[index];
             final eventId = data['id'] as String;
             return _buildPublicEventCard(eventId, data);
           },

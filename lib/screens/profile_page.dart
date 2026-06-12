@@ -14,6 +14,7 @@ import 'hysacam_dashboard.dart';
 import 'volunteer_dashboard.dart';
 import 'signin_page.dart';
 import 'edit_profile_page.dart';
+import 'help_support_page.dart';
 import '../utils/theme_helper.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -364,14 +365,20 @@ class _ProfilePageState extends State<ProfilePage> {
                 stream: SupabaseService.getUserWasteRequestsStream(SupabaseService.currentUser?.id ?? ''),
                 builder: (context, snapshot) {
                   final reportCount = snapshot.hasData ? snapshot.data!.length : 0;
-                  return Row(
-                    children: [
-                      _buildStatCard("Campaigns", "0", Icons.campaign_outlined),
-                      const SizedBox(width: 12),
-                      _buildStatCard("Reports", '$reportCount', Icons.report_outlined),
-                      const SizedBox(width: 12),
-                      _buildStatCard("Points", "0", Icons.star_outline_rounded),
-                    ],
+                  return FutureBuilder<int>(
+                    future: SupabaseService.getUserPoints(SupabaseService.currentUser?.id ?? ''),
+                    builder: (context, pointsSnapshot) {
+                      final points = pointsSnapshot.data ?? 0;
+                      return Row(
+                        children: [
+                          _buildStatCard("Campaigns", "0", Icons.campaign_outlined, const Color(0xFF2196F3), 0),
+                          const SizedBox(width: 12),
+                          _buildStatCard("Reports", '$reportCount', Icons.report_outlined, const Color(0xFFFF5722), reportCount),
+                          const SizedBox(width: 12),
+                          _buildStatCard("Points", '$points', points > 0 ? Icons.star : Icons.star_outline_rounded, const Color(0xFFFFC107), points),
+                        ],
+                      );
+                    },
                   );
                 },
               ),
@@ -391,7 +398,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   const SizedBox(height: 8),
                   _buildMenuCard([
-                    _buildMenuItem(Icons.dashboard_outlined, "Dashboard", "View your activity", () async {
+                    _buildMenuItem(Icons.dashboard_outlined, "Dashboard", "View your activity", const Color(0xFF2196F3), () async {
                       final userProfile = await SupabaseService.getUserProfile(SupabaseService.currentUser?.id ?? '');
                       final role = userProfile?['role'] ?? '';
                       
@@ -404,7 +411,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         Navigator.push(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
                       }
                     }),
-                    _buildMenuItem(Icons.person_outline, "Edit Profile", "Update your information", () {
+                    _buildMenuItem(Icons.person_outline, "Edit Profile", "Update your information", const Color(0xFF4CAF50), () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => const EditProfilePage()),
@@ -420,13 +427,15 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   const SizedBox(height: 8),
                   _buildMenuCard([
-                    _buildMenuItem(Icons.notifications_outlined, "Notifications", "Manage alerts", () {
+                    _buildMenuItem(Icons.notifications_outlined, "Notifications", "Manage alerts", const Color(0xFFFF9800), () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsPage()));
                     }),
-                    _buildMenuItem(Icons.settings_outlined, "Settings", "App preferences", () {
+                    _buildMenuItem(Icons.settings_outlined, "Settings", "App preferences", const Color(0xFF9C27B0), () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage()));
                     }),
-                    _buildMenuItem(Icons.help_outline_rounded, "Help & Support", "Get assistance", () {}),
+                    _buildMenuItem(Icons.help_outline_rounded, "Help & Support", "Get assistance", const Color(0xFFF44336), () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpSupportPage()));
+                    }),
                   ]),
 
                   const SizedBox(height: 20),
@@ -486,7 +495,8 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon) {
+  Widget _buildStatCard(String label, String value, IconData icon, Color iconColor, int count) {
+    final isActive = count > 0;
     return Expanded(
       child: Material(
         color: ThemeHelper.getCardColor(context),
@@ -497,8 +507,16 @@ class _ProfilePageState extends State<ProfilePage> {
           padding: const EdgeInsets.symmetric(vertical: 16),
           child: Column(
             children: [
-              Icon(icon, color: const Color(0xFF4CAF50), size: 22),
-              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: isActive ? 0.2 : 0.12),
+                  shape: BoxShape.circle,
+                  border: isActive ? Border.all(color: iconColor.withValues(alpha: 0.3), width: 2) : null,
+                ),
+                child: Icon(icon, color: iconColor, size: 22),
+              ),
+              const SizedBox(height: 8),
               Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: ThemeHelper.getTextColor(context))),
               const SizedBox(height: 2),
               Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[700])),
@@ -519,16 +537,16 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildMenuItem(IconData icon, String title, String subtitle, VoidCallback onTap) {
+  Widget _buildMenuItem(IconData icon, String title, String subtitle, Color iconColor, VoidCallback onTap) {
     return ListTile(
       onTap: onTap,
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
+          color: iconColor.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon, color: const Color(0xFF4CAF50), size: 20),
+        child: Icon(icon, color: iconColor, size: 20),
       ),
       title: Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: ThemeHelper.getTextColor(context))),
       subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[700])),

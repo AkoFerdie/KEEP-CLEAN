@@ -45,13 +45,102 @@ class NotificationsPage extends StatelessWidget {
             );
           }
 
-          final patrols = snapshot.data!;
+          // Filter out past patrols
+          final now = DateTime.now();
+          final upcomingPatrols = snapshot.data!.where((patrol) {
+            try {
+              // Parse date and time
+              final dateStr = patrol['date'] as String?;
+              final timeStr = patrol['time'] as String?;
+              
+              if (dateStr == null || timeStr == null) return false;
+              
+              // Parse date (format: "May 24, 2025" or "2025-05-24")
+              DateTime? patrolDate;
+              try {
+                // Try ISO format first
+                patrolDate = DateTime.parse(dateStr);
+              } catch (_) {
+                // Try parsing common formats
+                final months = {
+                  'January': 1, 'February': 2, 'March': 3, 'April': 4,
+                  'May': 5, 'June': 6, 'July': 7, 'August': 8,
+                  'September': 9, 'October': 10, 'November': 11, 'December': 12
+                };
+                
+                final parts = dateStr.split(' ');
+                if (parts.length >= 3) {
+                  final month = months[parts[0]];
+                  final day = int.tryParse(parts[1].replaceAll(',', ''));
+                  final year = int.tryParse(parts[2]);
+                  
+                  if (month != null && day != null && year != null) {
+                    patrolDate = DateTime(year, month, day);
+                  }
+                }
+              }
+              
+              if (patrolDate == null) return false;
+              
+              // Parse time (format: "2:00 PM" or "14:00")
+              int hour = 0;
+              int minute = 0;
+              
+              if (timeStr.contains('PM') || timeStr.contains('AM')) {
+                final isPM = timeStr.contains('PM');
+                final cleanTime = timeStr.replaceAll(RegExp(r'[APM ]'), '');
+                final timeParts = cleanTime.split(':');
+                if (timeParts.length >= 2) {
+                  hour = int.tryParse(timeParts[0]) ?? 0;
+                  minute = int.tryParse(timeParts[1]) ?? 0;
+                  if (isPM && hour != 12) hour += 12;
+                  if (!isPM && hour == 12) hour = 0;
+                }
+              } else {
+                final timeParts = timeStr.split(':');
+                if (timeParts.length >= 2) {
+                  hour = int.tryParse(timeParts[0]) ?? 0;
+                  minute = int.tryParse(timeParts[1]) ?? 0;
+                }
+              }
+              
+              final patrolDateTime = DateTime(
+                patrolDate.year,
+                patrolDate.month,
+                patrolDate.day,
+                hour,
+                minute,
+              );
+              
+              // Return true only if patrol is in the future
+              return patrolDateTime.isAfter(now);
+            } catch (e) {
+              return false; // Skip patrols with invalid date/time
+            }
+          }).toList();
+
+          if (upcomingPatrols.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.check_circle_outline, size: 64, color: Colors.grey[300]),
+                  const SizedBox(height: 16),
+                  Text('All clear!',
+                      style: TextStyle(fontSize: 16, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 6),
+                  Text('No upcoming patrols scheduled',
+                      style: TextStyle(fontSize: 13, color: Colors.grey[400])),
+                ],
+              ),
+            );
+          }
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: patrols.length,
+            itemCount: upcomingPatrols.length,
             itemBuilder: (context, index) {
-              final p = patrols[index];
+              final p = upcomingPatrols[index];
               return GestureDetector(
                 onTap: () => _showDetail(context, p),
                 child: Container(
