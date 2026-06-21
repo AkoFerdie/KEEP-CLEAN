@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AIService {
+
   static const String _openaiBaseUrl = 'https://api.openai.com/v1/chat/completions';
 
   // Safe getter for API keys
@@ -14,9 +15,9 @@ class AIService {
     }
   }
 
-  static String get _geminiKey {
+  static String get _groqKey {
     try {
-      return dotenv.env['GEMINI_API_KEY'] ?? '';
+      return dotenv.env['GROQ_API_KEY'] ?? '';
     } catch (e) {
       return '';
     }
@@ -55,14 +56,14 @@ Be conversational, helpful, and knowledgeable on all topics!
 
   static Future<String> sendMessage(String userMessage) async {
     try {
-      // Try Gemini first (FREE)
-      if (_geminiKey.isNotEmpty && _geminiKey != 'your-free-gemini-key-here') {
-        final response = await _sendMessageGemini(userMessage);
+      // Try Groq first (FREE + fast)
+      if (_groqKey.isNotEmpty && _groqKey != 'your-groq-key-here') {
+        final response = await _sendMessageGroq(userMessage);
         if (response.isNotEmpty && !response.contains('not configured')) {
           return response;
         }
       }
-      
+
       // Try OpenAI as fallback
       if (_openaiKey.isNotEmpty && _openaiKey != 'your-openai-api-key-here') {
         final response = await _sendMessageOpenAI(userMessage);
@@ -70,65 +71,43 @@ Be conversational, helpful, and knowledgeable on all topics!
           return response;
         }
       }
-      
-      // If no API keys configured, return setup message
-      return "🤖 **AI Setup Required**\n\nTo enable full AI capabilities that can answer ANY question:\n\n🆓 **FREE Option (Recommended):**\n1. Get free Gemini API key: https://makersuite.google.com/app/apikey\n2. Add to .env file: GEMINI_API_KEY=your-key\n\n💰 **Paid Option:**\n1. Get OpenAI key: https://platform.openai.com/api-keys\n2. Add to .env file: OPENAI_API_KEY=your-key\n\n📱 For now, I can help with basic app questions using built-in responses.";
-      
+
+      return _getFallbackResponse(userMessage);
     } catch (e) {
       return _getFallbackResponse(userMessage);
     }
   }
 
-  static Future<String> _sendMessageGemini(String userMessage) async {
+  static Future<String> _sendMessageGroq(String userMessage) async {
     try {
-      // Try models in order until one works
-      final models = [
-        'gemini-2.0-flash',
-        'gemini-1.5-flash',
-        'gemini-1.5-flash-8b',
-        'gemini-pro',
-      ];
+      final response = await http.post(
+        Uri.parse('https://api.groq.com/openai/v1/chat/completions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_groqKey',
+        },
+        body: jsonEncode({
+          'model': 'llama-3.3-70b-versatile',
+          'messages': [
+            {'role': 'system', 'content': _systemPrompt},
+            {'role': 'user', 'content': userMessage},
+          ],
+          'max_tokens': 1000,
+          'temperature': 0.7,
+        }),
+      );
 
-      for (final model in models) {
-        final url = 'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent';
-        final response = await http.post(
-          Uri.parse('$url?key=$_geminiKey'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'contents': [{
-              'parts': [{
-                'text': '$_systemPrompt\n\nUser: $userMessage'
-              }]
-            }],
-            'generationConfig': {
-              'maxOutputTokens': 1000,
-              'temperature': 0.7,
-            }
-          }),
-        );
-
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          if (data['candidates'] != null && data['candidates'].isNotEmpty) {
-            return data['candidates'][0]['content']['parts'][0]['text'].toString().trim();
-          }
-        } else if (response.statusCode == 404) {
-          // Model not available, try next
-          continue;
-        } else if (response.statusCode == 403) {
-          final errorData = jsonDecode(response.body);
-          return "🚫 ${errorData['error']?['message'] ?? 'API key permission denied'}";
-        } else if (response.statusCode == 429) {
-          return "⏳ Rate limit reached. Please wait a moment and try again.";
-        } else {
-          final errorData = jsonDecode(response.body);
-          return "❌ API error: ${errorData['error']?['message'] ?? response.statusCode}";
-        }
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['choices'][0]['message']['content'].toString().trim();
+      } else if (response.statusCode == 401) {
+        return '🔑 Invalid Groq API key. Please check your configuration.';
+      } else if (response.statusCode == 429) {
+        return '⏳ Rate limit reached. Please wait a moment and try again.';
       }
-
-      return "❌ No available Gemini models found for your API key. Please check https://aistudio.google.com/app/apikey";
+      return '❌ Groq API error: ${response.statusCode}';
     } catch (e) {
-      return "🌐 Network error: $e\n\nPlease check your internet connection and try again.";
+      return '🌐 Connection error: $e';
     }
   }
 
@@ -190,9 +169,9 @@ Be conversational, helpful, and knowledgeable on all topics!
   // Check if AI is properly configured
   static bool isConfigured() {
     try {
-      final gemini = _geminiKey;
+      final groq = _groqKey;
       final openai = _openaiKey;
-      return (gemini.isNotEmpty && gemini != 'your-free-gemini-key-here') ||
+      return (groq.isNotEmpty && groq != 'your-groq-key-here') ||
              (openai.isNotEmpty && openai != 'your-openai-api-key-here');
     } catch (e) {
       return false;

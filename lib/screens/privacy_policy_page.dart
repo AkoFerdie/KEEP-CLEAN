@@ -203,7 +203,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
             final index = entry.key;
             final section = entry.value;
             return _buildSection(context, index + 1, section['title']!, section['content']!);
-          }).toList(),
+          }),
           const SizedBox(height: 24),
           Container(
             padding: const EdgeInsets.all(20),

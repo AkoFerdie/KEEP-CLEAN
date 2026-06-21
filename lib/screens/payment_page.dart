@@ -104,6 +104,18 @@ class _PaymentPageState extends State<PaymentPage> {
 
           await SupabaseService.acceptWasteRequest(widget.docId, username);
 
+          // Notify the poster that their pickup was unlocked
+          final posterId = widget.requestData['created_by']?.toString() ?? '';
+          if (posterId.isNotEmpty) {
+            await SupabaseService.sendNotification(
+              userId: posterId,
+              title: '🚛 Pickup Unlocked!',
+              body: '$username is on the way to collect your waste at ${widget.requestData['location']}.',
+              type: 'pickup_taken',
+              referenceId: widget.docId,
+            );
+          }
+
           Navigator.pop(context);
           _showSnackBar(
             '✅ Payment successful! Pickup accepted. Contact: ${widget.requestData['phone']}',
@@ -223,7 +235,7 @@ class _PaymentPageState extends State<PaymentPage> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: (provider['color'] as Color).withOpacity(0.1),
+                            color: (provider['color'] as Color).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(

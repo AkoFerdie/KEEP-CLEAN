@@ -208,7 +208,7 @@ class _TermsOfServicePageState extends State<TermsOfServicePage> {
             final index = entry.key;
             final section = entry.value;
             return _buildSection(context, index + 1, section['title']!, section['content']!);
-          }).toList(),
+          }),
 
           const SizedBox(height: 24),
 

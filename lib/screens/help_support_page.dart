@@ -189,7 +189,7 @@ class _HelpSupportPageState extends State<HelpSupportPage> {
               category['category'],
               category['questions'],
             );
-          }).toList(),
+          }),
 
           const SizedBox(height: 30),
 
@@ -373,7 +373,7 @@ class _HelpSupportPageState extends State<HelpSupportPage> {
                   ),
                 ],
               );
-            }).toList(),
+            }),
           ],
         ),
       ),

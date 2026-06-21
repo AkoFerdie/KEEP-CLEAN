@@ -439,6 +439,118 @@ class SupabaseService {
     await client.from('waste_requests').update(data).eq('id', requestId);
   }
 
+  /// Mark waste request as done
+  static Future<void> markWasteRequestDone(String requestId) async {
+    await client
+        .from('waste_requests')
+        .update({'status': 'done'})
+        .eq('id', requestId);
+  }
+
+  /// Get pickups accepted by current user
+  static Stream<List<Map<String, dynamic>>> getAcceptedPickupsStream(String userId) {
+    return client
+        .from('waste_requests')
+        .stream(primaryKey: ['id'])
+        .eq('accepted_by', userId)
+        .order('created_at', ascending: false);
+  }
+
+  /// Send in-app notification
+  static Future<void> sendNotification({
+    required String userId,
+    required String title,
+    required String body,
+    String? type,
+    String? referenceId,
+  }) async {
+    try {
+      await client.from('notifications').insert({
+        'user_id': userId,
+        'title': title,
+        'body': body,
+        'type': type ?? 'general',
+        'reference_id': referenceId,
+        'is_read': false,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    } catch (_) {}
+  }
+
+  /// Get notifications stream for current user
+  static Stream<List<Map<String, dynamic>>> getNotificationsStream(String userId) {
+    return client
+        .from('notifications')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', userId)
+        .order('created_at', ascending: false);
+  }
+
+  /// Mark notification as read
+  static Future<void> markNotificationRead(String notificationId) async {
+    await client.from('notifications').update({'is_read': true}).eq('id', notificationId);
+  }
+
+  /// Rate a collector
+  static Future<void> rateCollector({
+    required String collectorId,
+    required String requestId,
+    required int rating,
+    String? review,
+  }) async {
+    final user = currentUser;
+    if (user == null) return;
+    await client.from('ratings').insert({
+      'rated_by': user.id,
+      'rated_user': collectorId,
+      'request_id': requestId,
+      'rating': rating,
+      'review': review ?? '',
+      'created_at': DateTime.now().toIso8601String(),
+    });
+    // Update average rating on user profile
+    final ratings = await client.from('ratings').select('rating').eq('rated_user', collectorId);
+    if (ratings.isNotEmpty) {
+      final avg = ratings.map((r) => r['rating'] as int).reduce((a, b) => a + b) / ratings.length;
+      await updateUserProfile(collectorId, {'average_rating': avg, 'total_ratings': ratings.length});
+    }
+  }
+
+  /// Get drop points stream
+  static Stream<List<Map<String, dynamic>>> getDropPointsStream() {
+    return client
+        .from('drop_points')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false);
+  }
+
+  /// Add a drop point
+  static Future<void> addDropPoint({
+    required String name,
+    required String area,
+    required String address,
+    required String type,
+    String? description,
+    String? photoUrl,
+  }) async {
+    final user = currentUser;
+    if (user == null) throw Exception('User not authenticated');
+    final profile = await getUserProfile(user.id);
+    final username = profile?['username'] ?? user.email ?? 'Anonymous';
+    await client.from('drop_points').insert({
+      'name': name,
+      'area': area,
+      'address': address,
+      'type': type,
+      'description': description ?? '',
+      'added_by': user.id,
+      'added_by_name': username,
+      'is_verified': false,
+      'photo_url': photoUrl,
+      'created_at': DateTime.now().toIso8601String(),
+    });
+  }
+
   /// Accept waste request
   static Future<void> acceptWasteRequest(
     String requestId,

@@ -13,6 +13,7 @@ import 'dashboard_screen.dart';
 import 'hysacam_dashboard.dart';
 import 'volunteer_dashboard.dart';
 import 'signin_page.dart';
+import 'history_page.dart';
 import 'edit_profile_page.dart';
 import 'help_support_page.dart';
 import '../utils/theme_helper.dart';
@@ -361,27 +362,7 @@ class _ProfilePageState extends State<ProfilePage> {
             // ── Stats Row ──
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: StreamBuilder<List<Map<String, dynamic>>>(
-                stream: SupabaseService.getUserWasteRequestsStream(SupabaseService.currentUser?.id ?? ''),
-                builder: (context, snapshot) {
-                  final reportCount = snapshot.hasData ? snapshot.data!.length : 0;
-                  return FutureBuilder<int>(
-                    future: SupabaseService.getUserPoints(SupabaseService.currentUser?.id ?? ''),
-                    builder: (context, pointsSnapshot) {
-                      final points = pointsSnapshot.data ?? 0;
-                      return Row(
-                        children: [
-                          _buildStatCard("Campaigns", "0", Icons.campaign_outlined, const Color(0xFF2196F3), 0),
-                          const SizedBox(width: 12),
-                          _buildStatCard("Reports", '$reportCount', Icons.report_outlined, const Color(0xFFFF5722), reportCount),
-                          const SizedBox(width: 12),
-                          _buildStatCard("Points", '$points', points > 0 ? Icons.star : Icons.star_outline_rounded, const Color(0xFFFFC107), points),
-                        ],
-                      );
-                    },
-                  );
-                },
-              ),
+              child: _ProfileStats(userId: SupabaseService.currentUser?.id ?? ''),
             ),
 
             const SizedBox(height: 24),
@@ -400,12 +381,12 @@ class _ProfilePageState extends State<ProfilePage> {
                   _buildMenuCard([
                     _buildMenuItem(Icons.dashboard_outlined, "Dashboard", "View your activity", const Color(0xFF2196F3), () async {
                       final userProfile = await SupabaseService.getUserProfile(SupabaseService.currentUser?.id ?? '');
-                      final role = userProfile?['role'] ?? '';
+                      final role = userProfile?['role']?.toString().trim() ?? '';
                       
                       if (!mounted) return;
-                      if (role == 'Government Company (Hysacam)') {
+                      if (role == 'Government Company (Hysacam)' || role.toLowerCase().contains('hysacam')) {
                         Navigator.push(context, MaterialPageRoute(builder: (_) => const HysacamDashboard()));
-                      } else if (role == 'Organization / Volunteer') {
+                      } else if (role == 'Organization / Volunteer' || role.toLowerCase().contains('volunteer') || role.toLowerCase().contains('organization')) {
                         Navigator.push(context, MaterialPageRoute(builder: (_) => const VolunteerDashboard()));
                       } else {
                         Navigator.push(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
@@ -415,6 +396,12 @@ class _ProfilePageState extends State<ProfilePage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => const EditProfilePage()),
+                      );
+                    }),
+                    _buildMenuItem(Icons.history_rounded, "My Pickups", "Pickups you posted & accepted", const Color(0xFF00897B), () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const HistoryPage()),
                       );
                     }),
                   ]),
@@ -495,6 +482,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildStatCard(String label, String value, IconData icon, Color iconColor, int count) {
     final isActive = count > 0;
     return Expanded(
@@ -554,6 +542,137 @@ class _ProfilePageState extends State<ProfilePage> {
         Icons.arrow_forward_ios_rounded, 
         size: 14, 
         color: ThemeHelper.getSecondaryTextColor(context).withValues(alpha: 0.7),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// Profile Stats Widget
+// ─────────────────────────────────────────────
+class _ProfileStats extends StatelessWidget {
+  final String userId;
+  const _ProfileStats({required this.userId});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: SupabaseService.getUserWasteRequestsStream(userId),
+      builder: (context, postedSnap) {
+        final posted = postedSnap.data ?? [];
+        final done = posted.where((r) => r['status'] == 'done').length;
+
+        return StreamBuilder<List<Map<String, dynamic>>>(
+          stream: SupabaseService.getAcceptedPickupsStream(userId),
+          builder: (context, acceptedSnap) {
+            final accepted = acceptedSnap.data ?? [];
+            final collected = accepted.where((r) => r['status'] == 'done').length;
+
+            return FutureBuilder<Map<String, dynamic>?>(
+              future: SupabaseService.getUserProfile(userId),
+              builder: (context, profileSnap) {
+                final rating = profileSnap.data?['average_rating'];
+                final ratingStr = rating != null
+                    ? (rating as num).toStringAsFixed(1)
+                    : '-';
+
+                return Row(
+                  children: [
+                    _statCard(context, '$done', 'Posted\nDone', Icons.local_shipping_outlined, const Color(0xFF4CAF50)),
+                    const SizedBox(width: 8),
+                    _statCard(context, '$collected', 'Collected', Icons.recycling, const Color(0xFF2196F3)),
+                    const SizedBox(width: 8),
+                    _ratingCard(context, rating),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _statCard(BuildContext context, String value, String label, IconData icon, Color color) {
+    return Expanded(
+      child: Material(
+        color: ThemeHelper.getCardColor(context),
+        borderRadius: BorderRadius.circular(14),
+        elevation: 2,
+        shadowColor: Colors.grey.withValues(alpha: 0.15),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(height: 6),
+              Text(value,
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: ThemeHelper.getTextColor(context))),
+              const SizedBox(height: 2),
+              Text(label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 10, color: Colors.grey[600])),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _ratingCard(BuildContext context, dynamic rating) {
+    final double ratingValue = rating != null ? (rating as num).toDouble() : 0.0;
+    final int filledStars = ratingValue.round().clamp(0, 5);
+    final bool hasRating = ratingValue > 0;
+
+    return Expanded(
+      child: Material(
+        color: hasRating
+            ? const Color(0xFFFFC107).withValues(alpha: 0.12)
+            : ThemeHelper.getCardColor(context),
+        borderRadius: BorderRadius.circular(14),
+        elevation: 2,
+        shadowColor: Colors.grey.withValues(alpha: 0.15),
+        child: Container(
+          decoration: hasRating
+              ? BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                      color: const Color(0xFFFFC107).withValues(alpha: 0.4), width: 1.5),
+                )
+              : null,
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+          child: Column(
+            children: [
+              Text(
+                hasRating ? ratingValue.toStringAsFixed(1) : '-',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: hasRating
+                      ? const Color(0xFFE65100)
+                      : ThemeHelper.getTextColor(context),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (i) => Icon(
+                  i < filledStars ? Icons.star : Icons.star_border,
+                  color: const Color(0xFFFFC107),
+                  size: 12,
+                )),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Rating',
+                style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

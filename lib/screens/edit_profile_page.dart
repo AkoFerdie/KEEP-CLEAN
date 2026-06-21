@@ -217,7 +217,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                   vertical: 4,
                                 ),
                                 child: DropdownButtonFormField<String>(
-                                  value: _selectedRole,
+                                  initialValue: _selectedRole,
                                   isExpanded: true,
                                   dropdownColor: Colors.white,
                                   decoration: InputDecoration(
@@ -232,7 +232,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                       decoration: BoxDecoration(
                                         color: const Color(
                                           0xFF4CAF50,
-                                        ).withOpacity(0.1),
+                                        ).withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: const Icon(
@@ -299,7 +299,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                       decoration: BoxDecoration(
                                         color: const Color(
                                           0xFF4CAF50,
-                                        ).withOpacity(0.1),
+                                        ).withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: const Icon(
@@ -386,7 +386,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.green.withOpacity(0.07),
+            color: Colors.green.withValues(alpha: 0.07),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),

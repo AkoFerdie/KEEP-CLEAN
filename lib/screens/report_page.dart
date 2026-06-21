@@ -483,8 +483,7 @@ class _WasteRequestCard extends StatelessWidget {
                     child: Image.network(
                       imageUrls[0],
                       width: double.infinity,
-                      height: w * 0.45,
-                      fit: BoxFit.cover,
+                      fit: BoxFit.contain,
                       errorBuilder: (_, _, _) => Container(
                         height: w * 0.45,
                         color: Colors.grey[200],
@@ -543,25 +542,66 @@ class _WasteRequestCard extends StatelessWidget {
                     ),
                   ),
 
-                if (status == 'taken')
+                if (status == 'taken' && data['created_by'] != currentUser?.id)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        '🔴 This pickup has already been taken',
+                        style: TextStyle(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13),
+                      ),
+                    ),
+                  ),
+
+                if (status == 'taken' && data['created_by'] == currentUser?.id)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
                       color: const Color(0xFF4CAF50).withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                          color: const Color(0xFF4CAF50).withValues(alpha: 0.3)),
+                      border: Border.all(color: const Color(0xFF4CAF50).withValues(alpha: 0.3)),
                     ),
                     child: Center(
                       child: Text(
-                        '🚛 ${data['accepted_by_name'] ?? 'Someone'} is coming to pick this up!',
+                        '🚛 ${data['accepted_by_name'] ?? 'Someone'} is on the way to collect!',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                             color: Color(0xFF2E7D32),
                             fontWeight: FontWeight.w600,
                             fontSize: 13),
                       ),
+                    ),
+                  ),
+
+                if (status == 'taken' && data['accepted_by'] == currentUser?.id)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.07),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text('✅ You unlocked this pickup',
+                            style: TextStyle(color: Colors.blue, fontWeight: FontWeight.w700, fontSize: 13)),
+                        const SizedBox(height: 4),
+                        Text('📞 Contact poster: ${data['phone'] ?? 'N/A'}',
+                            style: const TextStyle(color: Colors.blue, fontSize: 12)),
+                        Text('📍 Location: ${data['location'] ?? 'N/A'}',
+                            style: const TextStyle(color: Colors.blue, fontSize: 12)),
+                      ],
                     ),
                   ),
               ],

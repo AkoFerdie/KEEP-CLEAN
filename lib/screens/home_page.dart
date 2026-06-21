@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/supabase_service.dart';
 import '../services/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'engage_page.dart';
 import 'profile_page.dart';
 import 'report_page.dart';
@@ -14,7 +15,8 @@ import 'volunteer_dashboard.dart';
 import '../utils/theme_helper.dart';
 import '../main.dart';
 import 'notifications_page.dart';
-import 'notifications_page.dart';
+import 'map_page.dart';
+import 'drop_points_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -573,62 +575,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showAIChatModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.85,
-        maxChildSize: 0.95,
-        minChildSize: 0.5,
-        builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              // Handle bar
-              Container(
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              // Header
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                child: Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'EcoBot AI Assistant',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF2E7D32),
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
-                ),
-              ),
-              // AI Chat Content
-              const Expanded(child: AIChatPage()),
-            ],
-          ),
-        ),
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AIChatPage()),
     );
   }
 
@@ -658,7 +607,10 @@ class _HomePageState extends State<HomePage> {
   Widget _buildCurrentPage() {
     switch (_currentIndex) {
       case 0:
-        return _HomeContent(onJoinEvent: () => setState(() => _currentIndex = 1));
+        return _HomeContent(
+          onJoinEvent: () => setState(() => _currentIndex = 1),
+          onSchedule: () => setState(() => _currentIndex = 3),
+        );
 
       case 1:
         return const EngagePage();
@@ -709,9 +661,17 @@ class _HomePageState extends State<HomePage> {
 }
 
 // ------------------ HOME CONTENT ------------------
-class _HomeContent extends StatelessWidget {
+class _HomeContent extends StatefulWidget {
   final VoidCallback? onJoinEvent;
-  const _HomeContent({this.onJoinEvent});
+  final VoidCallback? onSchedule;
+  const _HomeContent({this.onJoinEvent, this.onSchedule});
+
+  @override
+  State<_HomeContent> createState() => _HomeContentState();
+}
+
+class _HomeContentState extends State<_HomeContent> {
+  String? _cachedName;
 
   String _extractFirstNameFromFullName(String fullName) {
     final clean = fullName.trim();
@@ -763,22 +723,24 @@ class _HomeContent extends StatelessWidget {
                         .maybeSingle()
                   : Future.value(null),
               builder: (context, snapshot) {
-                String name = 'there';
                 if (snapshot.hasData && snapshot.data != null) {
                   final username = snapshot.data!['username'] as String?;
                   if (username != null && username.trim().isNotEmpty) {
-                    name = username.trim();
+                    _cachedName = _extractFirstNameFromFullName(username.trim());
                   }
                 }
 
-                if (name == 'there') {
-                  final metadataName = user?.userMetadata?['name']?.toString();
+                if (_cachedName == null) {
+                  final meta = user?.userMetadata;
+                  final metadataName = (meta?['name'] ?? meta?['full_name'] ?? meta?['preferred_username'])?.toString();
                   if (metadataName != null && metadataName.trim().isNotEmpty) {
-                    name = _extractFirstNameFromFullName(metadataName);
+                    _cachedName = _extractFirstNameFromFullName(metadataName);
                   } else if (user?.email != null) {
-                    name = _extractFirstNameFromEmail(user!.email!);
+                    _cachedName = _extractFirstNameFromEmail(user!.email!);
                   }
                 }
+
+                final name = _cachedName ?? 'there';
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -885,7 +847,7 @@ class _HomeContent extends StatelessWidget {
                   Icons.campaign_outlined,
                   "Join\nEvent",
                   const Color(0xFF1E88E5),
-                  onJoinEvent,
+                  widget.onJoinEvent,
                 ),
                 SizedBox(width: w * 0.03),
                 _buildQuickAction(
@@ -893,15 +855,15 @@ class _HomeContent extends StatelessWidget {
                   Icons.map_outlined,
                   "View\nMap",
                   const Color(0xFF8E24AA),
-                  null,
+                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MapPage())),
                 ),
                 SizedBox(width: w * 0.03),
                 _buildQuickAction(
                   context,
-                  Icons.calendar_today_outlined,
-                  "Schedule",
-                  const Color(0xFF4CAF50),
-                  null,
+                  Icons.location_on_outlined,
+                  "Drop\nPoints",
+                  const Color(0xFF00897B),
+                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DropPointsPage())),
                 ),
               ],
             ),
@@ -964,19 +926,14 @@ class _HomeContent extends StatelessWidget {
                                       .maybeSingle();
 
                                   if (userData != null) {
-                                    final role = (userData['role'] ?? 'user').toString().toLowerCase().trim();
-
-                                    print('User role from database: $role');
+                                    final role = (userData['role'] ?? 'user').toString().trim();
 
                                     Widget targetDashboard;
-                                    if (role.contains('hysacam') || role.contains('cleanup') || role == 'admin') {
-                                      print('Navigating to Hysacam Dashboard');
+                                    if (role == 'Government Company (Hysacam)' || role.toLowerCase().contains('hysacam') || role.toLowerCase().contains('cleanup') || role.toLowerCase() == 'admin') {
                                       targetDashboard = const HysacamDashboard();
-                                    } else if (role.contains('volunteer') || role.contains('organization')) {
-                                      print('Navigating to Volunteer Dashboard');
+                                    } else if (role == 'Organization / Volunteer' || role.toLowerCase().contains('volunteer') || role.toLowerCase().contains('organization')) {
                                       targetDashboard = const VolunteerDashboard();
                                     } else {
-                                      print('Navigating to User Dashboard (default)');
                                       targetDashboard = const DashboardScreen();
                                     }
 
@@ -1193,14 +1150,207 @@ class _HomeContent extends StatelessWidget {
     );
   }
 
+  void _showMapModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        maxChildSize: 0.95,
+        minChildSize: 0.4,
+        builder: (_, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 10),
+                width: 40, height: 4,
+                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+              ),
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Icon(Icons.map_outlined, color: Color(0xFF8E24AA)),
+                    SizedBox(width: 8),
+                    Text('Locations Map', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: FutureBuilder<List<List<Map<String, dynamic>>>>(
+                  future: Future.wait([
+                    SupabaseService.client.from('waste_requests').select('location, status, amount').limit(20),
+                    SupabaseService.client.from('patrol_schedules').select('location, date, time').limit(20),
+                    SupabaseService.client.from('campaigns').select('location, date, status').limit(20),
+                  ]).then((r) => [
+                    List<Map<String, dynamic>>.from(r[0]),
+                    List<Map<String, dynamic>>.from(r[1]),
+                    List<Map<String, dynamic>>.from(r[2]),
+                  ]),
+                  builder: (ctx, snap) {
+                    if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: Color(0xFF4CAF50)));
+                    final wasteReqs = snap.data![0];
+                    final patrols = snap.data![1];
+                    final events = snap.data![2];
+
+                    return SingleChildScrollView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Open in Google Maps button
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                const url = 'https://www.google.com/maps/search/waste+collection+Yaounde+Cameroon';
+                                if (await canLaunchUrl(Uri.parse(url))) {
+                                  await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                                }
+                              },
+                              icon: const Icon(Icons.open_in_new, color: Colors.white, size: 18),
+                              label: const Text('Open Google Maps', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF8E24AA),
+                                padding: const EdgeInsets.symmetric(vertical: 13),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Waste Pickup Requests
+                          if (wasteReqs.isNotEmpty) ...[
+                            _mapSectionTitle('🗑️ Waste Pickup Locations', wasteReqs.length, const Color(0xFF1E88E5)),
+                            ...wasteReqs.map((r) => _mapLocationTile(
+                              icon: Icons.delete_outline,
+                              color: r['status'] == 'open' ? const Color(0xFF1E88E5) : r['status'] == 'taken' ? Colors.orange : Colors.green,
+                              title: r['location'] ?? 'Unknown location',
+                              subtitle: '${r['status']?.toString().toUpperCase() ?? 'OPEN'} · ${r['amount'] ?? '0'} FCFA',
+                              onTap: () => _openLocationOnMap(r['location'] ?? ''),
+                            )),
+                            const SizedBox(height: 16),
+                          ],
+
+                          // Patrol Schedules
+                          if (patrols.isNotEmpty) ...[
+                            _mapSectionTitle('🚛 Patrol Schedule Areas', patrols.length, const Color(0xFF4CAF50)),
+                            ...patrols.map((p) => _mapLocationTile(
+                              icon: Icons.local_shipping_outlined,
+                              color: const Color(0xFF4CAF50),
+                              title: p['location'] ?? 'Unknown location',
+                              subtitle: '${p['date'] ?? ''} at ${p['time'] ?? ''}',
+                              onTap: () => _openLocationOnMap(p['location'] ?? ''),
+                            )),
+                            const SizedBox(height: 16),
+                          ],
+
+                          // Events/Campaigns
+                          if (events.isNotEmpty) ...[
+                            _mapSectionTitle('📍 Event Locations', events.length, Colors.orange),
+                            ...events.map((e) => _mapLocationTile(
+                              icon: Icons.campaign_outlined,
+                              color: Colors.orange,
+                              title: e['location'] ?? 'Unknown location',
+                              subtitle: e['date'] ?? '',
+                              onTap: () => _openLocationOnMap(e['location'] ?? ''),
+                            )),
+                          ],
+
+                          if (wasteReqs.isEmpty && patrols.isEmpty && events.isEmpty)
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(30),
+                                child: Text('No locations found yet.', style: TextStyle(color: Colors.grey)),
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _mapSectionTitle(String title, int count, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+            child: Text('$count', style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _mapLocationTile({required IconData icon, required Color color, required String title, required String subtitle, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+              child: Icon(icon, color: color, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
+                  Text(subtitle, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                ],
+              ),
+            ),
+            Icon(Icons.open_in_new, size: 16, color: color),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openLocationOnMap(String location) async {
+    final encoded = Uri.encodeComponent('$location Cameroon');
+    final url = 'https://www.google.com/maps/search/?api=1&query=$encoded';
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    }
+  }
+
   Widget _buildQuickAction(
     BuildContext context,
     IconData icon,
     String label,
     Color color,
     VoidCallback? onTap,
-  ) {
-    final w = MediaQuery.of(context).size.width;
+  ) {    final w = MediaQuery.of(context).size.width;
     return Expanded(
       child: GestureDetector(
         onTap: onTap,

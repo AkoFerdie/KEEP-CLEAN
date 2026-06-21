@@ -3,9 +3,6 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/supabase_service.dart';
 
-const String _googleWebClientId =
-    '988746847535-h3e8d7o9iusebo307mqvmo0nplthh6uc.apps.googleusercontent.com';
-
 // ── GOOGLE SIGN IN ──
 Future<void> signInWithGoogleViaSupabase() async {
   try {
@@ -14,12 +11,13 @@ Future<void> signInWithGoogleViaSupabase() async {
       return;
     }
 
-    await GoogleSignIn.instance.initialize(serverClientId: _googleWebClientId);
     await GoogleSignIn.instance.signOut();
 
-    final googleUser = await GoogleSignIn.instance.authenticate();
-    if (googleUser == null) return;
+    if (!kIsWeb) {
+      // Already initialized in main.dart for mobile
+    }
 
+    final googleUser = await GoogleSignIn.instance.authenticate();
     final googleAuth = googleUser.authentication;
 
     if (googleAuth.idToken == null) {

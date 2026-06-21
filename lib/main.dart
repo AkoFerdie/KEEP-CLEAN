@@ -1,9 +1,14 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // Provides Supabase authentication and database functionality
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_config.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_page.dart';
+
+const String _googleWebClientId =
+    '988746847535-h3e8d7o9iusebo307mqvmo0nplthh6uc.apps.googleusercontent.com';
 
 /// Global notifier used to switch between light and dark themes.
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
@@ -12,6 +17,11 @@ final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 void main() async {
   // Ensures Flutter bindings are initialized before using async code.
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Google Sign-In early - mobile only
+  if (!kIsWeb) {
+    await GoogleSignIn.instance.initialize(serverClientId: _googleWebClientId);
+  }
 
   try {
     // Loads environment variables from the .env file.

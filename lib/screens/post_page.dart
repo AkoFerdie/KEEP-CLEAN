@@ -845,9 +845,11 @@ class _SchedulePickupTabState extends State<_SchedulePickupTab> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Location services are disabled.")),
         );
+        }
         return;
       }
 
@@ -855,18 +857,22 @@ class _SchedulePickupTabState extends State<_SchedulePickupTab> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("Location permissions are denied.")),
           );
+          }
           return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text("Location permissions are permanently denied.")),
         );
+        }
         return;
       }
 
@@ -884,14 +890,18 @@ class _SchedulePickupTabState extends State<_SchedulePickupTab> {
               "${position.latitude}, ${position.longitude}";
         }
       } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Could not open Google Maps.")),
         );
+        }
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error fetching location: $e")),
       );
+      }
     }
   }
 

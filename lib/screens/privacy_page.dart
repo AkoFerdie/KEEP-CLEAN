@@ -8,7 +8,6 @@ import 'dart:js_interop';
 import 'package:web/web.dart' as web;
 import '../services/supabase_service.dart';
 import '../utils/theme_helper.dart';
-import 'signin_page.dart';
 import 'getting_started_page.dart';
 
 class PrivacyPage extends StatefulWidget {

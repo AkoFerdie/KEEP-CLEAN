@@ -10,7 +10,7 @@ class SupabaseConfig {
 
   static SupabaseClient get client => Supabase.instance.client;
 
-  static bool _initialized = false;
+  static final bool _initialized = false;
 
   static Future<void> initialize() async {
     if (_initialized) return;
